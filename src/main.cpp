@@ -1,15 +1,15 @@
 #include <FL/Fl.H>
-#include <FL/Fl_Window.H>
-#include <FL/Fl_Box.H>
+#include "HexEditorWindow.h"
 
 int main(int argc, char **argv) {
-    Fl_Window *window = new Fl_Window(340, 180);
-    Fl_Box *box = new Fl_Box(20, 40, 300, 100, "Hello, FLTK!");
-    box->box(FL_UP_BOX);
-    box->labelfont(FL_BOLD+FL_ITALIC);
-    box->labelsize(36);
-    box->labeltype(FL_SHADOW_LABEL);
+    // 初始化FLTK
+    Fl::scheme("gtk+");
+    
+    // 创建主窗口
+    HexEditorWindow* window = new HexEditorWindow(800, 600, "简易十六进制编辑器");
     window->end();
     window->show(argc, argv);
+    
+    // 运行主循环
     return Fl::run();
 }

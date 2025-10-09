@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
-project(FLTK_Demo)
+project(foolhex)
 
 # 添加FLTK子模块
 add_subdirectory(thirdparty/fltk)
 
 # 创建可执行文件
-add_executable(${PROJECT_NAME} src/main.cpp)
+add_executable(${PROJECT_NAME} src/main.cpp src/kmp.cpp src/LargeFile.cpp src/HexTable.cpp src/HexEditorWindow.cpp)
 
 # 链接FLTK库
 target_link_libraries(${PROJECT_NAME} PRIVATE fltk)
