@@ -52,7 +52,7 @@ HexTable::HexTable(int x, int y, int w, int h)
     rows(m_maxRows);
     row_header(0);
     row_height_all(m_rowHeight);
-        
+
     // 创建输入部件用于单元格编辑
     m_input = new Fl_Input(w/2, h/2, 0, 0);
     m_input->hide(); // 初始隐藏
@@ -336,10 +336,12 @@ void HexTable::draw_cell(TableContext context, int ROW, int COL, int X, int Y, i
 
 // 重写的事件处理函数
 int HexTable::handle(int event) {
+    int handled = 0;
     // 先处理我们关心的特定事件
     switch (event) {
         case FL_PUSH: {
             // 鼠标点击事件
+            take_focus();
             int R, C;
             ResizeFlag resizeflag;
             // 获取鼠标点击位置对应的单元格行列
@@ -360,6 +362,7 @@ int HexTable::handle(int event) {
                 
                 // 触发重绘以显示选中状态
                 redraw();
+                handled = 1;
             }
             break;
         }
@@ -377,6 +380,7 @@ int HexTable::handle(int event) {
                     m_colEndSelect = C;
                     // 触发重绘以更新选择区域
                     redraw();
+                    handled = 1;
                 }
             }
             break;
@@ -389,6 +393,7 @@ int HexTable::handle(int event) {
                 m_isSelecting = false;
                 // 触发重绘以清除选中状态
                 redraw();
+                handled = 1;
             }
             break;
         }
@@ -399,8 +404,8 @@ int HexTable::handle(int event) {
                 done_editing(); // ESC键取消编辑
             } else {
                 // 获取当前选中的单元格
-                int R = callback_row();
-                int C = callback_col();
+                int R = m_rowStartSelect;
+                int C = m_colStartSelect;
                 
                 done_editing(); // 完成之前的编辑
                 
@@ -420,12 +425,12 @@ int HexTable::handle(int event) {
                     }
                 }
             }
+            handled = 1;
             break;
         }
-        default: {
-            // 对于我们未处理的事件，调用父类的handle方法
-            return Fl_Table::handle(event);
-        }
+    }
+    if (!handled) {
+        return Fl_Table::handle(event);
     }
     
     return 1;
