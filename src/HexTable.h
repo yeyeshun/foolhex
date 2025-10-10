@@ -24,6 +24,7 @@ private:
     bool m_isSelecting;           // 是否正在进行选择
     int m_rowStartSelect, m_colStartSelect; // 选择的起始位置
     int m_rowEndSelect, m_colEndSelect;     // 选择的结束位置
+    bool m_isLow4BitEditing; // 是否正在选择高4位
     
     // 事件处理方法
     virtual int handle(int event) override; // 重写的事件处理函数

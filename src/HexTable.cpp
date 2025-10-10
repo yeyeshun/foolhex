@@ -249,14 +249,18 @@ void HexTable::draw_cell(TableContext context, int ROW, int COL, int X, int Y, i
                     }
                 }
             }
+            fl_color(FL_WHITE); // 白色背景
+            fl_rectf(X, Y, W, H);
             
             // 设置背景色
             if (isSelected) {
                 fl_color(FL_LIGHT1); // 浅蓝色背景
-            } else {
-                fl_color(FL_WHITE); // 白色背景
+                if (m_isLow4BitEditing) {
+                    fl_rectf(X + W / 2, Y, W / 2, H);
+                } else {
+                    fl_rectf(X, Y, W, H);
+                }
             }
-            fl_rectf(X, Y, W, H);
             
             // 确保使用支持中文的等宽字体
             fl_font(getFixedFont(), 12);
@@ -323,15 +327,19 @@ int HexTable::handle(int event) {
             // 获取鼠标点击位置对应的单元格行列
             TableContext context = cursor2rowcol(R, C, resizeflag);
             if (context == CONTEXT_CELL) {
-                    // 开始选择
-                    m_isSelecting = true;
-                    m_rowStartSelect = m_rowEndSelect = R;
-                    m_colStartSelect = m_colEndSelect = C;
-                    
-                    // 触发重绘以显示选中状态
-                    redraw();
-                }
+                // 开始选择
+                m_isSelecting = true;
+                m_rowStartSelect = m_rowEndSelect = R;
+                m_colStartSelect = m_colEndSelect = C;
+                int X,Y,W,H;
+                find_cell(CONTEXT_CELL, R,C, X,Y,W,H);
+                // 检查是否点击在高4位
+                m_isLow4BitEditing = ((Fl::event_x() - X) >= W / 2);
+
+                // 触发重绘以显示选中状态
+                redraw();
                 handled = 1;
+            }
             break;
         }
         
@@ -347,6 +355,9 @@ int HexTable::handle(int event) {
                     m_rowEndSelect = R;
                     m_colEndSelect = C;
                     // 触发重绘以更新选择区域
+                    if (m_rowStartSelect != m_rowEndSelect || m_colStartSelect != m_colEndSelect) {
+                        m_isLow4BitEditing = 0;
+                    }
                     redraw();
                     handled = 1;
                 }
@@ -381,15 +392,57 @@ int HexTable::handle(int event) {
                     char key = Fl::e_text[0];
                     if ((key >= '0' && key <= '9') || 
                         (key >= 'a' && key <= 'f') || 
-                        (key >= 'A' && key <= 'F') || 
-                        key == ' ' || key == '.') {
+                        (key >= 'A' && key <= 'F')) {
+                        // 计算缓冲区中的索引
+                        size_t bufferIndex = R * m_bytesPerRow + (C - 1);
+                        
+                        // 确保索引在缓冲区范围内
+                        if (bufferIndex < m_bufferSize) {
+                            // 将字符转换为数值
+                            int value = 0;
+                            if (key >= '0' && key <= '9') {
+                                value = key - '0';
+                            } else if (key >= 'a' && key <= 'f') {
+                                value = key - 'a' + 10;
+                            } else if (key >= 'A' && key <= 'F') {
+                                value = key - 'A' + 10;
+                            }
                             
+                            // 根据m_isLow4BitEditing标志决定更新高4位还是低4位
+                            if (m_isLow4BitEditing) {
+                                // 更新低4位
+                                m_buffer[bufferIndex] = (m_buffer[bufferIndex] & 0xF0) | value;
+                                m_isLow4BitEditing = 0;
+                                m_colStartSelect++;
+                                // 确保不超出当前行的边界
+                                if (m_colStartSelect > m_bytesPerRow) {
+                                    m_colStartSelect = 1;
+                                    m_rowStartSelect++;
+                                }
+                                if (m_rowStartSelect * m_bytesPerRow + m_colStartSelect >= m_fileSize) {
+                                    m_colStartSelect = (m_fileSize - 1) % m_bytesPerRow + 1;
+                                    m_rowStartSelect = (m_fileSize - 1) / m_bytesPerRow;
+                                }
+                                m_rowEndSelect = m_rowStartSelect;
+                                m_colEndSelect = m_colStartSelect;
+                            } else {
+                                // 更新高4位
+                                m_buffer[bufferIndex] = (m_buffer[bufferIndex] & 0x0F) | (value << 4);
+                                m_isLow4BitEditing = 1;
+                            }
+                            
+                            // 触发重绘以更新显示
+                            redraw();
+                            
+                            // 更新状态信息
+                            UpdateStatus();
+                        }
+                        handled = 1;
                     } else if (key == '\r' || key == '\n') {
-                        // Enter键开始编辑
+                        // Enter键处理
                     }
                 }
             }
-            handled = 1;
             break;
         }
     }
