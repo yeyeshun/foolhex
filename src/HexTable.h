@@ -25,12 +25,13 @@ private:
     Fl_Input* m_input;           // 用于单元格编辑的输入部件
     int m_rowEdit, m_colEdit;    // 当前编辑的行和列
     
-    // 选中单元格相关变量
-    int m_rowSelect, m_colSelect; // 当前选中的行和列
+    // 选择相关变量
+    bool m_isSelecting;           // 是否正在进行选择
+    int m_rowStartSelect, m_colStartSelect; // 选择的起始位置
+    int m_rowEndSelect, m_colEndSelect;     // 选择的结束位置
     
-    // 事件回调处理
-    void event_callback2();      // 表格的事件回调（实例方法）
-    static void event_callback(Fl_Widget*, void *v); // 表格的事件回调（静态方法）
+    // 事件处理方法
+    virtual int handle(int event) override; // 重写的事件处理函数
     static void input_cb(Fl_Widget*, void* v); // 输入部件的回调方法
     
     // 编辑操作方法

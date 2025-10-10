@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <fcntl.h>
 #include <unistd.h>
+#include <algorithm>
 
 // 设置并返回支持中文的等宽字体
 Fl_Font HexTable::getFixedFont() {
@@ -28,7 +29,8 @@ HexTable::HexTable(int x, int y, int w, int h)
     : Fl_Table(x, y, w, h), m_buffer(nullptr), m_bufferSize(0), 
       m_fileSize(0), m_bytesPerRow(16), m_startOffset(0), m_statusBuffer(nullptr),
       m_input(nullptr), m_rowEdit(-1), m_colEdit(-1),
-      m_rowSelect(-1), m_colSelect(-1) {
+      m_isSelecting(false), m_rowStartSelect(-1), m_colStartSelect(-1),
+      m_rowEndSelect(-1), m_colEndSelect(-1) {
     m_fileName[0] = '\0';
     
     // 设置支持中文的等宽字体
@@ -50,11 +52,7 @@ HexTable::HexTable(int x, int y, int w, int h)
     rows(m_maxRows);
     row_header(0);
     row_height_all(m_rowHeight);
-    
-    // 设置回调函数
-    callback(&event_callback, (void*)this);
-    when(FL_WHEN_NOT_CHANGED | when());
-    
+        
     // 创建输入部件用于单元格编辑
     m_input = new Fl_Input(w/2, h/2, 0, 0);
     m_input->hide(); // 初始隐藏
@@ -230,8 +228,47 @@ void HexTable::draw_cell(TableContext context, int ROW, int COL, int X, int Y, i
             
             fl_push_clip(X, Y, W, H);
             
-            // 如果是选中的单元格，使用浅蓝色背景
-            if (ROW == m_rowSelect && COL == m_colSelect) {
+            // 检查单元格是否在选择区域内
+            bool isSelected = false;
+            if (m_rowStartSelect != -1 && m_rowEndSelect != -1 && 
+                m_colStartSelect != -1 && m_colEndSelect != -1 && 
+                !(COL == 0) && !(COL == m_bytesPerRow + 1)) {
+                // 检查是否按下了Alt键
+                bool isAltPressed = Fl::event_state(FL_ALT);
+
+                if (isAltPressed) {
+                    int minRow = std::min(m_rowStartSelect, m_rowEndSelect);
+                    int maxRow = std::max(m_rowStartSelect, m_rowEndSelect);
+                    int minCol = std::min(m_colStartSelect, m_colEndSelect);
+                    int maxCol = std::max(m_colStartSelect, m_colEndSelect);
+                    // Alt键按下，使用块选择模式
+                    if (ROW >= minRow && ROW <= maxRow && COL >= minCol && COL <= maxCol) {
+                        isSelected = true;
+                    }
+                } else {
+                    // 默认模式，使用多行文本选择模式
+                    if ( m_rowStartSelect == m_rowEndSelect) {
+                        if (ROW == m_rowStartSelect && COL >= m_colStartSelect && COL <= m_colEndSelect) {
+                            isSelected = true;
+                        }
+                    } else if (m_rowStartSelect < m_rowEndSelect) {
+                        if ((ROW == m_rowStartSelect && COL >= m_colStartSelect) ||
+                            (ROW == m_rowEndSelect && COL <= m_colEndSelect) ||
+                            (ROW > m_rowStartSelect && ROW < m_rowEndSelect)) {
+                            isSelected = true;
+                        }
+                    } else {
+                        if ((ROW == m_rowStartSelect && COL <= m_colStartSelect) ||
+                            (ROW == m_rowEndSelect && COL >= m_colEndSelect) ||
+                            (ROW < m_rowStartSelect && ROW > m_rowEndSelect)) {
+                            isSelected = true;
+                        }
+                    }
+                }
+            }
+            
+            // 设置背景色
+            if (isSelected) {
                 fl_color(FL_LIGHT1); // 浅蓝色背景
             } else {
                 fl_color(FL_WHITE); // 白色背景
@@ -297,81 +334,101 @@ void HexTable::draw_cell(TableContext context, int ROW, int COL, int X, int Y, i
     }
 }
 
-// 表格的事件回调（静态方法）
-void HexTable::event_callback(Fl_Widget*, void *v) {
-    ((HexTable*)v)->event_callback2();
-}
-
-// 表格的事件回调（实例方法）
-void HexTable::event_callback2() {
-    int R = callback_row();
-    int C = callback_col();
-    TableContext context = callback_context();
-
-    switch (context) {
-        case CONTEXT_CELL: {
-            // 单元格上的事件
-            switch (Fl::event()) {
-                case FL_PUSH: {
-                    // 鼠标点击事件
-                    done_editing(); // 完成之前的编辑
-                    
-                    // 更新选中的单元格位置
-                    m_rowSelect = R;
-                    m_colSelect = C;
-                    
-                    // 只有十六进制数据列可以编辑
-                    if (C >= 1 && C <= m_bytesPerRow && Fl::event_clicks() == 1) {
-                        // 双击时进入编辑模式
-                        start_editing(R, C);
-                    }
-                    
-                    // 触发重绘以显示选中状态
-                    redraw();
-                    return;
+// 重写的事件处理函数
+int HexTable::handle(int event) {
+    // 先处理我们关心的特定事件
+    switch (event) {
+        case FL_PUSH: {
+            // 鼠标点击事件
+            int R, C;
+            ResizeFlag resizeflag;
+            // 获取鼠标点击位置对应的单元格行列
+            TableContext context = cursor2rowcol(R, C, resizeflag);
+            if (context == CONTEXT_CELL) {
+                done_editing(); // 完成之前的编辑
+                
+                // 开始选择
+                m_isSelecting = true;
+                m_rowStartSelect = m_rowEndSelect = R;
+                m_colStartSelect = m_colEndSelect = C;
+                
+                // 只有十六进制数据列可以编辑
+                if (C >= 1 && C <= m_bytesPerRow && Fl::event_clicks() == 1) {
+                    // 双击时进入编辑模式
+                    start_editing(R, C);
                 }
                 
-                case FL_KEYBOARD: {
-                    // 键盘事件
-                    if (Fl::event_key() == FL_Escape) {
-                        done_editing(); // ESC键取消编辑
-                        return;
-                    }
-                    
-                    done_editing(); // 完成之前的编辑
-                    
-                    // 只有十六进制数据列可以编辑
-                    if (C >= 1 && C <= m_bytesPerRow) {
-                        // 检查是否输入了有效的十六进制字符
-                        char key = Fl::e_text[0];
-                        if ((key >= '0' && key <= '9') || 
-                            (key >= 'a' && key <= 'f') || 
-                            (key >= 'A' && key <= 'F') || 
-                            key == ' ' || key == '.') {
-                            start_editing(R, C);
-                            m_input->handle(Fl::event()); // 将输入的字符传递给输入框
-                        } else if (key == '\r' || key == '\n') {
-                            // Enter键开始编辑
-                            start_editing(R, C);
-                        }
-                    }
-                    return;
+                // 触发重绘以显示选中状态
+                redraw();
+            }
+            break;
+        }
+        
+        case FL_DRAG: {
+            // 鼠标拖动事件
+            int R, C;
+            ResizeFlag resizeflag;
+            // 获取鼠标拖动位置对应的单元格行列
+            TableContext context = cursor2rowcol(R, C, resizeflag);
+            if (context == CONTEXT_CELL) {
+                if (m_isSelecting) {
+                    // 更新选择的结束位置
+                    m_rowEndSelect = R;
+                    m_colEndSelect = C;
+                    // 触发重绘以更新选择区域
+                    redraw();
                 }
             }
-            return;
+            break;
         }
         
-        case CONTEXT_TABLE: 
-        case CONTEXT_ROW_HEADER: 
-        case CONTEXT_COL_HEADER: {
-            // 表格其他区域的事件
-            done_editing(); // 完成编辑并隐藏输入框
-            return;
+        case FL_RELEASE: {
+            // 鼠标释放事件
+            if (m_isSelecting) {
+                // 结束选择
+                m_isSelecting = false;
+                // 触发重绘以清除选中状态
+                redraw();
+            }
+            break;
         }
         
-        default:
-            return;
+        case FL_KEYBOARD: {
+            // 键盘事件
+            if (Fl::event_key() == FL_Escape) {
+                done_editing(); // ESC键取消编辑
+            } else {
+                // 获取当前选中的单元格
+                int R = callback_row();
+                int C = callback_col();
+                
+                done_editing(); // 完成之前的编辑
+                
+                // 只有十六进制数据列可以编辑
+                if (C >= 1 && C <= m_bytesPerRow) {
+                    // 检查是否输入了有效的十六进制字符
+                    char key = Fl::e_text[0];
+                    if ((key >= '0' && key <= '9') || 
+                        (key >= 'a' && key <= 'f') || 
+                        (key >= 'A' && key <= 'F') || 
+                        key == ' ' || key == '.') {
+                        start_editing(R, C);
+                        m_input->handle(Fl::event()); // 将输入的字符传递给输入框
+                    } else if (key == '\r' || key == '\n') {
+                        // Enter键开始编辑
+                        start_editing(R, C);
+                    }
+                }
+            }
+            break;
+        }
+        default: {
+            // 对于我们未处理的事件，调用父类的handle方法
+            return Fl_Table::handle(event);
+        }
     }
+    
+    return 1;
 }
 
 // 输入部件的回调方法
