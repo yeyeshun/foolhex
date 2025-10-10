@@ -28,7 +28,6 @@ char HexTable::getPrintableChar(uint8_t byte) {
 HexTable::HexTable(int x, int y, int w, int h)
     : Fl_Table(x, y, w, h), m_buffer(nullptr), m_bufferSize(0), 
       m_fileSize(0), m_bytesPerRow(16), m_startOffset(0), m_statusBuffer(nullptr),
-      m_input(nullptr), m_rowEdit(-1), m_colEdit(-1),
       m_isSelecting(false), m_rowStartSelect(-1), m_colStartSelect(-1),
       m_rowEndSelect(-1), m_colEndSelect(-1) {
     m_fileName[0] = '\0';
@@ -52,14 +51,6 @@ HexTable::HexTable(int x, int y, int w, int h)
     rows(m_maxRows);
     row_header(0);
     row_height_all(m_rowHeight);
-
-    // 创建输入部件用于单元格编辑
-    m_input = new Fl_Input(w/2, h/2, 0, 0);
-    m_input->hide(); // 初始隐藏
-    m_input->callback(input_cb, (void*)this);
-    m_input->when(FL_WHEN_ENTER_KEY_ALWAYS); // 按下Enter键时触发回调
-    m_input->maximum_size(2); // 十六进制值最多两位
-    m_input->color(FL_YELLOW); // 编辑时显示黄色背景以突出显示
     
     end();
 }
@@ -67,9 +58,6 @@ HexTable::HexTable(int x, int y, int w, int h)
 HexTable::~HexTable() {
     if (m_buffer) {
         free(m_buffer);
-    }
-    if (m_input) {
-        delete m_input;
     }
     CloseFile();
 }
@@ -221,11 +209,6 @@ void HexTable::draw_cell(TableContext context, int ROW, int COL, int X, int Y, i
         }
         
         case CONTEXT_CELL: {
-            // 如果是正在编辑的单元格，且输入框可见，则不绘制单元格内容
-            if (ROW == m_rowEdit && COL == m_colEdit && m_input->visible()) {
-                return;
-            }
-            
             fl_push_clip(X, Y, W, H);
             
             // 检查单元格是否在选择区域内
@@ -319,13 +302,6 @@ void HexTable::draw_cell(TableContext context, int ROW, int COL, int X, int Y, i
         }
         
         case CONTEXT_RC_RESIZE: {
-            // 当表格大小调整时，如果有正在编辑的单元格，调整输入框的大小
-            if (m_input->visible()) {
-                int X, Y, W, H;
-                find_cell(CONTEXT_TABLE, m_rowEdit, m_colEdit, X, Y, W, H);
-                m_input->resize(X, Y, W, H);
-                init_sizes();
-            }
             return;
         }
         
@@ -347,23 +323,15 @@ int HexTable::handle(int event) {
             // 获取鼠标点击位置对应的单元格行列
             TableContext context = cursor2rowcol(R, C, resizeflag);
             if (context == CONTEXT_CELL) {
-                done_editing(); // 完成之前的编辑
-                
-                // 开始选择
-                m_isSelecting = true;
-                m_rowStartSelect = m_rowEndSelect = R;
-                m_colStartSelect = m_colEndSelect = C;
-                
-                // 只有十六进制数据列可以编辑
-                if (C >= 1 && C <= m_bytesPerRow && Fl::event_clicks() == 1) {
-                    // 双击时进入编辑模式
-                    start_editing(R, C);
+                    // 开始选择
+                    m_isSelecting = true;
+                    m_rowStartSelect = m_rowEndSelect = R;
+                    m_colStartSelect = m_colEndSelect = C;
+                    
+                    // 触发重绘以显示选中状态
+                    redraw();
                 }
-                
-                // 触发重绘以显示选中状态
-                redraw();
                 handled = 1;
-            }
             break;
         }
         
@@ -401,13 +369,11 @@ int HexTable::handle(int event) {
         case FL_KEYBOARD: {
             // 键盘事件
             if (Fl::event_key() == FL_Escape) {
-                done_editing(); // ESC键取消编辑
+                // ESC键处理
             } else {
                 // 获取当前选中的单元格
                 int R = m_rowStartSelect;
                 int C = m_colStartSelect;
-                
-                done_editing(); // 完成之前的编辑
                 
                 // 只有十六进制数据列可以编辑
                 if (C >= 1 && C <= m_bytesPerRow) {
@@ -417,11 +383,9 @@ int HexTable::handle(int event) {
                         (key >= 'a' && key <= 'f') || 
                         (key >= 'A' && key <= 'F') || 
                         key == ' ' || key == '.') {
-                        start_editing(R, C);
-                        m_input->handle(Fl::event()); // 将输入的字符传递给输入框
+                            
                     } else if (key == '\r' || key == '\n') {
                         // Enter键开始编辑
-                        start_editing(R, C);
                     }
                 }
             }
@@ -436,92 +400,7 @@ int HexTable::handle(int event) {
     return 1;
 }
 
-// 输入部件的回调方法
-void HexTable::input_cb(Fl_Widget*, void* v) {
-    ((HexTable*)v)->set_value_hide();
-}
 
-// 开始编辑单元格
-void HexTable::start_editing(int R, int C) {
-    if (!m_buffer || m_fileSize == 0) return;
-    
-    m_rowEdit = R;
-    m_colEdit = C;
-    set_selection(R, C, R, C); // 清除之前的多选
-    
-    int X, Y, W, H;
-    find_cell(CONTEXT_CELL, R, C, X, Y, W, H); // 找到单元格的位置和大小
-    
-    m_input->resize(X, Y, W, H); // 移动输入框到单元格位置
-    
-    // 加载单元格当前值到输入框
-    size_t offset = m_startOffset + R * m_bytesPerRow;
-    int byteIndex = C - 1;
-    if (offset + byteIndex < m_fileSize) {
-        char hexStr[4];
-        formatByte(hexStr, m_buffer[R * m_bytesPerRow + byteIndex]);
-        m_input->value(hexStr);
-    } else {
-        m_input->value("00");
-    }
-    
-    m_input->insert_position(0, 2); // 选中整个输入字段
-    m_input->show(); // 显示输入框
-    m_input->take_focus(); // 将焦点设置到输入框
-}
-
-// 完成编辑
-void HexTable::done_editing() {
-    if (m_input->visible()) {
-        set_value_hide(); // 应用值并隐藏输入框
-        m_rowEdit = -1;
-        m_colEdit = -1;
-    }
-}
-
-// 应用编辑值并隐藏输入框
-void HexTable::set_value_hide() {
-    if (!m_buffer || m_fileSize == 0) return;
-    
-    // 检查输入是否有效
-    const char* inputValue = m_input->value();
-    if (strlen(inputValue) >= 2) {
-        // 解析十六进制值
-        char hex[3] = {inputValue[0], inputValue[1], '\0'};
-        uint8_t newValue = strtol(hex, nullptr, 16);
-        
-        // 计算缓冲区中的位置
-        size_t bufferPos = m_rowEdit * m_bytesPerRow + (m_colEdit - 1);
-        size_t filePos = m_startOffset + bufferPos;
-        
-        // 更新缓冲区
-        if (bufferPos < m_bufferSize) {
-            m_buffer[bufferPos] = newValue;
-        }
-        
-        // 更新文件 - 直接打开文件进行修改
-        if (filePos < m_fileSize) {
-            // 以读写方式打开文件
-            int fileHandle = open(m_fileName, O_WRONLY);
-            if (fileHandle != -1) {
-                // 定位到要修改的位置
-                lseek(fileHandle, filePos, SEEK_SET);
-                // 写入新值
-                write(fileHandle, &newValue, 1);
-                // 关闭文件
-                close(fileHandle);
-            }
-        }
-        
-        // 刷新视图以显示更新后的值
-        RefreshView();
-        // 更新状态信息
-        UpdateStatus();
-    }
-    
-    m_input->hide();
-    window()->cursor(FL_CURSOR_DEFAULT); // 确保光标不会消失
-}
 
 // 启用表格单元格导航
 void HexTable::enable_cell_nav(bool enable) {

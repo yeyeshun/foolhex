@@ -3,7 +3,6 @@
 
 #include <FL/Fl_Table.H>
 #include <FL/Fl_Text_Buffer.H>
-#include <FL/Fl_Input.H>
 #include <cstdint>
 #include "LargeFile.h"
 
@@ -21,10 +20,6 @@ private:
     char m_fileName[256];       // 当前打开的文件名
     Fl_Text_Buffer* m_statusBuffer; // 状态信息缓冲区
     
-    // 编辑功能相关变量
-    Fl_Input* m_input;           // 用于单元格编辑的输入部件
-    int m_rowEdit, m_colEdit;    // 当前编辑的行和列
-    
     // 选择相关变量
     bool m_isSelecting;           // 是否正在进行选择
     int m_rowStartSelect, m_colStartSelect; // 选择的起始位置
@@ -32,12 +27,6 @@ private:
     
     // 事件处理方法
     virtual int handle(int event) override; // 重写的事件处理函数
-    static void input_cb(Fl_Widget*, void* v); // 输入部件的回调方法
-    
-    // 编辑操作方法
-    void start_editing(int R, int C); // 开始编辑单元格
-    void done_editing();             // 完成编辑
-    void set_value_hide();           // 应用编辑值并隐藏输入框
     // 设置并返回支持中文的等宽字体
     Fl_Font getFixedFont();
 
