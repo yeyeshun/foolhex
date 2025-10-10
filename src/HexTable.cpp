@@ -27,7 +27,8 @@ char HexTable::getPrintableChar(uint8_t byte) {
 HexTable::HexTable(int x, int y, int w, int h)
     : Fl_Table(x, y, w, h), m_buffer(nullptr), m_bufferSize(0), 
       m_fileSize(0), m_bytesPerRow(16), m_startOffset(0), m_statusBuffer(nullptr),
-      m_input(nullptr), m_rowEdit(-1), m_colEdit(-1) {
+      m_input(nullptr), m_rowEdit(-1), m_colEdit(-1),
+      m_rowSelect(-1), m_colSelect(-1) {
     m_fileName[0] = '\0';
     
     // 设置支持中文的等宽字体
@@ -228,7 +229,13 @@ void HexTable::draw_cell(TableContext context, int ROW, int COL, int X, int Y, i
             }
             
             fl_push_clip(X, Y, W, H);
-            fl_color(FL_WHITE);
+            
+            // 如果是选中的单元格，使用浅蓝色背景
+            if (ROW == m_rowSelect && COL == m_colSelect) {
+                fl_color(FL_LIGHT1); // 浅蓝色背景
+            } else {
+                fl_color(FL_WHITE); // 白色背景
+            }
             fl_rectf(X, Y, W, H);
             
             // 确保使用支持中文的等宽字体
@@ -308,10 +315,19 @@ void HexTable::event_callback2() {
                 case FL_PUSH: {
                     // 鼠标点击事件
                     done_editing(); // 完成之前的编辑
+                    
+                    // 更新选中的单元格位置
+                    m_rowSelect = R;
+                    m_colSelect = C;
+                    
                     // 只有十六进制数据列可以编辑
-                    if (C >= 1 && C <= m_bytesPerRow) {
+                    if (C >= 1 && C <= m_bytesPerRow && Fl::event_clicks() == 1) {
+                        // 双击时进入编辑模式
                         start_editing(R, C);
                     }
+                    
+                    // 触发重绘以显示选中状态
+                    redraw();
                     return;
                 }
                 

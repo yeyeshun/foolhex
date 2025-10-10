@@ -25,6 +25,9 @@ private:
     Fl_Input* m_input;           // 用于单元格编辑的输入部件
     int m_rowEdit, m_colEdit;    // 当前编辑的行和列
     
+    // 选中单元格相关变量
+    int m_rowSelect, m_colSelect; // 当前选中的行和列
+    
     // 事件回调处理
     void event_callback2();      // 表格的事件回调（实例方法）
     static void event_callback(Fl_Widget*, void *v); // 表格的事件回调（静态方法）
