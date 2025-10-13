@@ -15,7 +15,8 @@ private:
     size_t m_fileSize;          // 文件大小
     size_t m_bytesPerRow;       // 每行显示的字节数
     size_t m_startOffset;       // 当前显示的起始偏移量
-    const size_t m_maxRows = 100; // 最大显示行数
+    size_t m_visibleRows; // 可见行数
+    size_t m_extraRows = 20; // 额外缓存行数（用于平滑滚动）
     const size_t m_rowHeight = 20; // 行高
     char m_fileName[256];       // 当前打开的文件名
     Fl_Text_Buffer* m_statusBuffer; // 状态信息缓冲区

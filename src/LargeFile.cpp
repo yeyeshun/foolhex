@@ -103,7 +103,7 @@ int CLargeFile::OpenFile(const char* pFilePathName, uint32_t nPageCount /*= 3*/)
 	}
 #else
 	// Linux平台的文件打开和映射
-	m_hFile = open(pFilePathName, O_RDONLY);
+	m_hFile = open(pFilePathName, O_RDWR);
 	if (m_hFile < 0)
 	{
 		return FALSE;
@@ -297,7 +297,8 @@ uint8_t* CLargeFile::OnMapViewOfFile(LargeInteger nViewStart, uint32_t dwMapSize
 	uint64_t aligned_offset = offset & ~(page_size - 1);
 	size_t offset_in_page = offset - aligned_offset;
 
-	void* addr = mmap(NULL, dwMapSize + offset_in_page, PROT_READ, MAP_SHARED, m_hMap, aligned_offset);
+	// 使用PROT_READ|PROT_WRITE和MAP_PRIVATE实现写时复制功能，与Windows的FILE_MAP_COPY对应
+	void* addr = mmap(NULL, dwMapSize + offset_in_page, PROT_READ | PROT_WRITE, MAP_PRIVATE, m_hMap, aligned_offset);
 	if (addr == MAP_FAILED)
 	{
 		return NULL;

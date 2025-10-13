@@ -6,7 +6,7 @@ int main(int argc, char **argv) {
     Fl::scheme("gtk+");
     
     // 创建主窗口
-    HexEditorWindow* window = new HexEditorWindow(800, 600, "简易十六进制编辑器");
+    HexEditorWindow* window = new HexEditorWindow(1024, 600, "简易十六进制编辑器");
     window->end();
     window->show(argc, argv);
     

@@ -32,6 +32,19 @@ HexTable::HexTable(int x, int y, int w, int h)
       m_rowEndSelect(-1), m_colEndSelect(-1) {
     m_fileName[0] = '\0';
     
+    // 计算可见行数（基于屏幕高度和行高）
+    m_visibleRows = Fl::h() / m_rowHeight;
+    if (m_visibleRows < 10) m_visibleRows = 10; // 最小行数保护
+    
+    // 初始化缓冲区 - 在构造函数中就创建，与是否打开文件无关
+    // 设置更大的额外缓存行数用于平滑滚动
+    m_extraRows = m_visibleRows * 2; // 设置为可见行数的2倍作为缓存
+    m_bufferSize = (m_visibleRows + m_extraRows) * m_bytesPerRow;
+    m_buffer = (uint8_t*)malloc(m_bufferSize);
+    if (m_buffer) {
+        memset(m_buffer, 0, m_bufferSize);
+    }
+    
     // 设置支持中文的等宽字体
     fl_font(getFixedFont(), 12);
     
@@ -48,7 +61,6 @@ HexTable::HexTable(int x, int y, int w, int h)
     // 设置ASCII列宽度
     col_width(m_bytesPerRow + 1, 180);
     
-    rows(m_maxRows);
     row_header(0);
     row_height_all(m_rowHeight);
     
@@ -64,6 +76,9 @@ HexTable::~HexTable() {
 
 // 打开文件
 bool HexTable::OpenFile(const char* fileName) {
+    // 先关闭可能已经打开的文件
+    CloseFile();
+    
     if (m_largeFile.OpenFile(fileName) != 1) {
         return false;
     }
@@ -77,13 +92,18 @@ bool HexTable::OpenFile(const char* fileName) {
     m_largeFile.GetFileSizeEx(&fileSize);
     m_fileSize = fileSize.QuadPart;
     
-    // 分配缓冲区
-    m_bufferSize = m_maxRows * m_bytesPerRow;
-    m_buffer = (uint8_t*)malloc(m_bufferSize);
+    // 如果缓冲区不存在，则创建
     if (!m_buffer) {
-        CloseFile();
-        return false;
+        m_bufferSize = (m_visibleRows + m_extraRows) * m_bytesPerRow;
+        m_buffer = (uint8_t*)malloc(m_bufferSize);
+        if (!m_buffer) {
+            CloseFile();
+            return false;
+        }
     }
+    
+    // 重置起始偏移量
+    m_startOffset = 0;
     
     // 读取初始数据
     RefreshView();
@@ -97,11 +117,10 @@ bool HexTable::OpenFile(const char* fileName) {
 // 关闭文件
 void HexTable::CloseFile() {
     m_largeFile.CloseFile();
-    if (m_buffer) {
-        free(m_buffer);
-        m_buffer = nullptr;
+    // 清空缓冲区但不释放（因为缓冲区在构造时创建，析构时释放）
+    if (m_buffer && m_bufferSize > 0) {
+        memset(m_buffer, 0, m_bufferSize);
     }
-    m_bufferSize = 0;
     m_fileSize = 0;
     m_startOffset = 0;
     m_fileName[0] = '\0';
@@ -119,7 +138,7 @@ void HexTable::RefreshView() {
     if (m_startOffset + readSize > m_fileSize) {
         readSize = m_fileSize - m_startOffset;
     }
-    
+    printf("offset: 0x%zx, readSize: %zu\n", m_startOffset, readSize);
     // 读取数据
     for (size_t i = 0; i < readSize; i++) {
         uint32_t avalibleSize = 0;
@@ -136,16 +155,21 @@ void HexTable::RefreshView() {
         memset(m_buffer + readSize, 0, m_bufferSize - readSize);
     }
     
-    // 更新表格行数
-    size_t rowCount = (readSize + m_bytesPerRow - 1) / m_bytesPerRow;
-    rows(rowCount > m_maxRows ? m_maxRows : rowCount);
+    // 更新表格行数 - 使用实际文件行数
+    size_t rowCount = (m_fileSize + m_bytesPerRow - 1) / m_bytesPerRow;
+    rows(rowCount);
     redraw();
 }
 
 // 向上滚动
 void HexTable::ScrollUp() {
-    if (m_startOffset >= m_bytesPerRow * 10) {
-        m_startOffset -= m_bytesPerRow * 10;
+    if (m_startOffset >= m_bytesPerRow) {
+        // 一次滚动半屏行数，而不是固定的10行
+        size_t scrollAmount = (m_visibleRows / 2) * m_bytesPerRow;
+        if (scrollAmount > m_startOffset) {
+            scrollAmount = m_startOffset;
+        }
+        m_startOffset -= scrollAmount;
         RefreshView();
     }
 }
@@ -153,9 +177,12 @@ void HexTable::ScrollUp() {
 // 向下滚动
 void HexTable::ScrollDown() {
     if (m_startOffset + m_bufferSize < m_fileSize) {
-        m_startOffset += m_bytesPerRow * 10;
-        if (m_startOffset + m_bufferSize > m_fileSize) {
+        // 一次滚动半屏行数
+        size_t scrollAmount = (m_visibleRows / 2) * m_bytesPerRow;
+        if (m_startOffset + m_bufferSize + scrollAmount > m_fileSize) {
             m_startOffset = m_fileSize - m_bufferSize;
+        } else {
+            m_startOffset += scrollAmount;
         }
         RefreshView();
     }
