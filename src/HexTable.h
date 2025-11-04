@@ -15,14 +15,13 @@ private:
     size_t m_fileSize;          // 文件大小
     size_t m_bytesPerRow;       // 每行显示的字节数
     size_t m_startOffset;       // 当前显示的起始偏移量
-    size_t m_visibleRows; // 可见行数
-    size_t m_extraRows = 20; // 额外缓存行数（用于平滑滚动）
     const size_t m_rowHeight = 20; // 行高
     char m_fileName[256];       // 当前打开的文件名
     Fl_Text_Buffer* m_statusBuffer; // 状态信息缓冲区
     
     // 选择相关变量
     bool m_isSelecting;           // 是否正在进行选择
+    bool m_isVertSelecting;       // 是否列选择
     int m_rowStartSelect, m_colStartSelect; // 选择的起始位置
     int m_rowEndSelect, m_colEndSelect;     // 选择的结束位置
     bool m_isLow4BitEditing; // 是否正在选择高4位
@@ -50,12 +49,6 @@ public:
 
     // 刷新视图
     void RefreshView();
-
-    // 向上滚动
-    void ScrollUp();
-
-    // 向下滚动
-    void ScrollDown();
 
     // 设置状态缓冲区
     void SetStatusBuffer(Fl_Text_Buffer* buffer);

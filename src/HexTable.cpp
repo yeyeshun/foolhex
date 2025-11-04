@@ -28,18 +28,17 @@ char HexTable::getPrintableChar(uint8_t byte) {
 HexTable::HexTable(int x, int y, int w, int h)
     : Fl_Table(x, y, w, h), m_buffer(nullptr), m_bufferSize(0), 
       m_fileSize(0), m_bytesPerRow(16), m_startOffset(0), m_statusBuffer(nullptr),
-      m_isSelecting(false), m_rowStartSelect(-1), m_colStartSelect(-1),
-      m_rowEndSelect(-1), m_colEndSelect(-1) {
+      m_isSelecting(false), m_isVertSelecting(false), m_rowStartSelect(-1),
+      m_colStartSelect(-1), m_rowEndSelect(-1), m_colEndSelect(-1) {
     m_fileName[0] = '\0';
     
     // 计算可见行数（基于屏幕高度和行高）
-    m_visibleRows = Fl::h() / m_rowHeight;
-    if (m_visibleRows < 10) m_visibleRows = 10; // 最小行数保护
+    int visibleRows = Fl::h() / m_rowHeight;
+    if (visibleRows < 10) visibleRows = 10; // 最小行数保护
     
     // 初始化缓冲区 - 在构造函数中就创建，与是否打开文件无关
     // 设置更大的额外缓存行数用于平滑滚动
-    m_extraRows = m_visibleRows * 2; // 设置为可见行数的2倍作为缓存
-    m_bufferSize = (m_visibleRows + m_extraRows) * m_bytesPerRow;
+    m_bufferSize = (visibleRows * 3) * m_bytesPerRow;
     m_buffer = (uint8_t*)malloc(m_bufferSize);
     if (m_buffer) {
         memset(m_buffer, 0, m_bufferSize);
@@ -94,7 +93,6 @@ bool HexTable::OpenFile(const char* fileName) {
     
     // 如果缓冲区不存在，则创建
     if (!m_buffer) {
-        m_bufferSize = (m_visibleRows + m_extraRows) * m_bytesPerRow;
         m_buffer = (uint8_t*)malloc(m_bufferSize);
         if (!m_buffer) {
             CloseFile();
@@ -104,7 +102,10 @@ bool HexTable::OpenFile(const char* fileName) {
     
     // 重置起始偏移量
     m_startOffset = 0;
-    
+    // 更新表格行数 - 使用实际文件行数
+    size_t rowCount = (m_fileSize + m_bytesPerRow - 1) / m_bytesPerRow;
+    rows(rowCount);
+
     // 读取初始数据
     RefreshView();
     
@@ -139,53 +140,17 @@ void HexTable::RefreshView() {
         readSize = m_fileSize - m_startOffset;
     }
     printf("offset: 0x%zx, readSize: %zu\n", m_startOffset, readSize);
+    memset(m_buffer, 0, readSize);
     // 读取数据
-    for (size_t i = 0; i < readSize; i++) {
-        uint32_t avalibleSize = 0;
-        void* dataPtr = m_largeFile.VisitFilePosition((uint32_t)(m_startOffset + i), 0, &avalibleSize);
-        if (dataPtr && avalibleSize >= 1) {
-            m_buffer[i] = *(uint8_t*)dataPtr;
-        } else {
-            m_buffer[i] = 0;
-        }
+    uint32_t avalibleSize = 0;
+    void* dataPtr = m_largeFile.VisitFilePosition(m_startOffset, 0, &avalibleSize);
+    if (dataPtr && avalibleSize >= readSize) {
+        memcpy(m_buffer, dataPtr, readSize);
+    } else {
+        printf("error while reading from offset: 0x%zx, readSize: %zu\n", m_startOffset, readSize);
     }
     
-    // 清除未使用的缓冲区部分
-    if (readSize < m_bufferSize) {
-        memset(m_buffer + readSize, 0, m_bufferSize - readSize);
-    }
-    
-    // 更新表格行数 - 使用实际文件行数
-    size_t rowCount = (m_fileSize + m_bytesPerRow - 1) / m_bytesPerRow;
-    rows(rowCount);
     redraw();
-}
-
-// 向上滚动
-void HexTable::ScrollUp() {
-    if (m_startOffset >= m_bytesPerRow) {
-        // 一次滚动半屏行数，而不是固定的10行
-        size_t scrollAmount = (m_visibleRows / 2) * m_bytesPerRow;
-        if (scrollAmount > m_startOffset) {
-            scrollAmount = m_startOffset;
-        }
-        m_startOffset -= scrollAmount;
-        RefreshView();
-    }
-}
-
-// 向下滚动
-void HexTable::ScrollDown() {
-    if (m_startOffset + m_bufferSize < m_fileSize) {
-        // 一次滚动半屏行数
-        size_t scrollAmount = (m_visibleRows / 2) * m_bytesPerRow;
-        if (m_startOffset + m_bufferSize + scrollAmount > m_fileSize) {
-            m_startOffset = m_fileSize - m_bufferSize;
-        } else {
-            m_startOffset += scrollAmount;
-        }
-        RefreshView();
-    }
 }
 
 // 设置状态缓冲区
@@ -244,7 +209,7 @@ void HexTable::draw_cell(TableContext context, int ROW, int COL, int X, int Y, i
                 m_colStartSelect != -1 && m_colEndSelect != -1 && 
                 !(COL == 0) && !(COL == m_bytesPerRow + 1)) {
                 // 检查是否按下了Alt键
-                bool isAltPressed = Fl::event_state(FL_ALT);
+                bool isAltPressed = m_isVertSelecting;
 
                 if (isAltPressed) {
                     int minRow = std::min(m_rowStartSelect, m_rowEndSelect);
@@ -356,6 +321,10 @@ int HexTable::handle(int event) {
             if (context == CONTEXT_CELL) {
                 // 开始选择
                 m_isSelecting = true;
+                if (Fl::get_key(FL_Alt_L) || Fl::get_key(FL_Alt_R))
+                    m_isVertSelecting = true;
+                else
+                    m_isVertSelecting = false;
                 m_rowStartSelect = m_rowEndSelect = R;
                 m_colStartSelect = m_colEndSelect = C;
                 int X,Y,W,H;
@@ -365,7 +334,6 @@ int HexTable::handle(int event) {
 
                 // 触发重绘以显示选中状态
                 redraw();
-                handled = 1;
             }
             break;
         }
@@ -386,7 +354,6 @@ int HexTable::handle(int event) {
                         m_isLow4BitEditing = 0;
                     }
                     redraw();
-                    handled = 1;
                 }
             }
             break;
@@ -399,7 +366,6 @@ int HexTable::handle(int event) {
                 m_isSelecting = false;
                 // 触发重绘以清除选中状态
                 redraw();
-                handled = 1;
             }
             break;
         }
@@ -408,11 +374,17 @@ int HexTable::handle(int event) {
             // 键盘事件
             if (Fl::event_key() == FL_Escape) {
                 // ESC键处理
+                handled = 1;
             } else {
                 // 获取当前选中的单元格
+                if (m_rowStartSelect != m_rowEndSelect || m_colStartSelect != m_colEndSelect)
+                {
+                    if (m_colStartSelect == 0) m_colStartSelect = 1;
+                    if (m_colEndSelect == 0) m_colEndSelect = 1;
+                }
                 int R = m_rowStartSelect;
                 int C = m_colStartSelect;
-                
+
                 // 只有十六进制数据列可以编辑
                 if (C >= 1 && C <= m_bytesPerRow) {
                     // 检查是否输入了有效的十六进制字符
@@ -434,7 +406,7 @@ int HexTable::handle(int event) {
                             } else if (key >= 'A' && key <= 'F') {
                                 value = key - 'A' + 10;
                             }
-                            
+
                             // 根据m_isLow4BitEditing标志决定更新高4位还是低4位
                             if (m_isLow4BitEditing) {
                                 // 更新低4位
@@ -450,13 +422,13 @@ int HexTable::handle(int event) {
                                     m_colStartSelect = (m_fileSize - 1) % m_bytesPerRow + 1;
                                     m_rowStartSelect = (m_fileSize - 1) / m_bytesPerRow;
                                 }
-                                m_rowEndSelect = m_rowStartSelect;
-                                m_colEndSelect = m_colStartSelect;
                             } else {
                                 // 更新高4位
                                 m_buffer[bufferIndex] = (m_buffer[bufferIndex] & 0x0F) | (value << 4);
                                 m_isLow4BitEditing = 1;
                             }
+                            m_rowEndSelect = m_rowStartSelect;
+                            m_colEndSelect = m_colStartSelect;
                             
                             // 触发重绘以更新显示
                             redraw();

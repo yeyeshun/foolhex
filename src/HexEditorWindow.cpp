@@ -13,14 +13,7 @@ HexEditorWindow::HexEditorWindow(int w, int h, const char* title)
     // 创建打开按钮
     m_openButton = new Fl_Button(w - 200, h - 60, 90, 30, "打开文件");
     m_openButton->callback(OpenButtonCallback, this);
-    
-    // 创建滚动按钮
-    m_upButton = new Fl_Button(w - 100, h - 60, 40, 30, "↑");
-    m_upButton->callback(UpButtonCallback, this);
-    
-    m_downButton = new Fl_Button(w - 50, h - 60, 40, 30, "↓");
-    m_downButton->callback(DownButtonCallback, this);
-    
+        
     // 创建状态显示
     m_statusBuffer = new Fl_Text_Buffer();
     m_statusDisplay = new Fl_Text_Display(10, h - 60, w - 210, 30);
@@ -50,16 +43,4 @@ void HexEditorWindow::OpenButtonCallback(Fl_Widget* widget, void* data) {
             fl_alert("无法打开文件: %s", fileName);
         }
     }
-}
-
-// 向上滚动按钮回调
-void HexEditorWindow::UpButtonCallback(Fl_Widget* widget, void* data) {
-    HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
-    window->m_hexTable->ScrollUp();
-}
-
-// 向下滚动按钮回调
-void HexEditorWindow::DownButtonCallback(Fl_Widget* widget, void* data) {
-    HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
-    window->m_hexTable->ScrollDown();
 }

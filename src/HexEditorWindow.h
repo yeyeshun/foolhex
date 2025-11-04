@@ -12,8 +12,6 @@ class HexEditorWindow : public Fl_Double_Window {
 private:
     HexTable* m_hexTable;
     Fl_Button* m_openButton;
-    Fl_Button* m_upButton;
-    Fl_Button* m_downButton;
     Fl_Text_Display* m_statusDisplay;
     Fl_Text_Buffer* m_statusBuffer;
 
