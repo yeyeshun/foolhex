@@ -9,28 +9,22 @@ Fl_Menu_Item HexEditorWindow::menuItems[] = {
     {"&文件", 0, 0, 0, FL_SUBMENU},
         {"&打开文件", FL_COMMAND + 'o', (Fl_Callback*)FileOpenCallback, 0},
         {"&保存文件", FL_COMMAND + 's', (Fl_Callback*)FileSaveCallback, 0},
-        {"保存为...", FL_COMMAND + FL_SHIFT + 's', (Fl_Callback*)FileSaveCallback, 0},
-        {0},
+        {"保存为...", FL_COMMAND + FL_SHIFT + 's', (Fl_Callback*)FileSaveCallback, 0, FL_MENU_DIVIDER},
         {"退&出", FL_COMMAND + 'q', (Fl_Callback*)FileExitCallback, 0},
         {0},
-    {0},
     {"&编辑", 0, 0, 0, FL_SUBMENU},
         {"&复制", FL_COMMAND + 'c', (Fl_Callback*)EditCopyCallback, 0},
-        {"&粘贴", FL_COMMAND + 'v', (Fl_Callback*)EditPasteCallback, 0},
-        {0},
+        {"&粘贴", FL_COMMAND + 'v', (Fl_Callback*)EditPasteCallback, 0, FL_MENU_DIVIDER},
         {"&查找", FL_COMMAND + 'f', (Fl_Callback*)EditFindCallback, 0},
         {0},
-    {0},
     {"&视图", 0, 0, 0, FL_SUBMENU},
         {"放大", FL_COMMAND + '+', (Fl_Callback*)ViewZoomInCallback, 0},
         {"缩小", FL_COMMAND + '-', (Fl_Callback*)ViewZoomOutCallback, 0},
         {"重置缩放", FL_COMMAND + '0', (Fl_Callback*)ViewResetZoomCallback, 0},
         {0},
-    {0},
     {"&帮助", 0, 0, 0, FL_SUBMENU},
         {"关于", 0, (Fl_Callback*)HelpAboutCallback, 0},
         {0},
-    {0},
     {0}
 };
 
@@ -49,18 +43,14 @@ HexEditorWindow::HexEditorWindow(int w, int h, const char* title)
     }
     
     // 创建十六进制表格（调整位置，为菜单栏留出空间）
-    m_hexTable = new HexTable(10, 40, w - 20, h - 120);
+    m_hexTable = new HexTable(10, 40, w - 20, h - 80);
     
     // 启用表格单元格导航功能
     m_hexTable->enable_cell_nav(true);
-    
-    // 创建打开按钮
-    m_openButton = new Fl_Button(w - 200, h - 60, 90, 30, "打开文件");
-    m_openButton->callback(OpenButtonCallback, this);
         
-    // 创建状态显示
+    // 创建状态显示（紧贴窗口底部，宽度与窗口相同）
     m_statusBuffer = new Fl_Text_Buffer();
-    m_statusDisplay = new Fl_Text_Display(10, h - 60, w - 210, 30);
+    m_statusDisplay = new Fl_Text_Display(0, h - 30, w, 30);
     m_statusDisplay->buffer(m_statusBuffer);
     
     // 设置状态显示使用支持中文的等宽字体
@@ -75,18 +65,6 @@ HexEditorWindow::HexEditorWindow(int w, int h, const char* title)
 
 HexEditorWindow::~HexEditorWindow() {
     delete m_statusBuffer;
-}
-
-// 打开文件按钮回调
-void HexEditorWindow::OpenButtonCallback(Fl_Widget* widget, void* data) {
-    HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
-    
-    const char* fileName = fl_file_chooser("选择文件", "*", nullptr);
-    if (fileName) {
-        if (!window->m_hexTable->OpenFile(fileName)) {
-            fl_alert("无法打开文件: %s", fileName);
-        }
-    }
 }
 
 // 菜单回调函数

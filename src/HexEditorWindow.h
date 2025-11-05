@@ -13,7 +13,6 @@
 class HexEditorWindow : public Fl_Double_Window {
 private:
     HexTable* m_hexTable;
-    Fl_Button* m_openButton;
     Fl_Text_Display* m_statusDisplay;
     Fl_Text_Buffer* m_statusBuffer;
     Fl_Menu_Bar* m_menuBar;
@@ -24,15 +23,6 @@ private:
 public:
     HexEditorWindow(int w, int h, const char* title);
     ~HexEditorWindow();
-
-    // 打开文件按钮回调
-    static void OpenButtonCallback(Fl_Widget* widget, void* data);
-
-    // 向上滚动按钮回调
-    static void UpButtonCallback(Fl_Widget* widget, void* data);
-
-    // 向下滚动按钮回调
-    static void DownButtonCallback(Fl_Widget* widget, void* data);
 
     // 菜单回调函数
     static void MenuCallback(Fl_Widget* widget, void* data);
