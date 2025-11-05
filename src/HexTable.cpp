@@ -228,7 +228,8 @@ void HexTable::draw_cell(TableContext context, int ROW, int COL, int X, int Y, i
                 fl_color(FL_BLACK);
                 char asciiStr[m_bytesPerRow + 1];
                 for (int i = 0; i < m_bytesPerRow; i++) {
-                    if (offset + i - m_visitOffset < m_fileSize) {
+                    if (offset + i - m_visitOffset < m_fileSize &&
+                        ROW * m_bytesPerRow + i - m_visitOffset < m_bufferSize) {
                         asciiStr[i] = getPrintableChar(m_buffer[ROW * m_bytesPerRow + i - m_visitOffset]);
                     } else {
                         asciiStr[i] = ' ';
@@ -240,7 +241,8 @@ void HexTable::draw_cell(TableContext context, int ROW, int COL, int X, int Y, i
                 // 十六进制数据列
                 fl_color(FL_BLACK);
                 int byteIndex = COL - 1;
-                if (offset + byteIndex - m_visitOffset < m_fileSize) {
+                if (offset + byteIndex - m_visitOffset < m_fileSize &&
+                        ROW * m_bytesPerRow + byteIndex - m_visitOffset < m_bufferSize) {
                     char hexStr[4];
                     formatByte(hexStr, m_buffer[ROW * m_bytesPerRow + byteIndex - m_visitOffset]);
                     fl_draw(hexStr, X, Y, W, H, FL_ALIGN_CENTER, nullptr, 0);
@@ -431,7 +433,7 @@ int HexTable::handle(int event) {
     int result = Fl_Table::handle(event);
     int r1, r2, c1, c2;
     visible_cells(r1, r2, c1, c2);
-    if (r1 > 0 && r2 > 0 &&
+    if (r1 >= 0 && r2 >= 0 &&
         (r1 * m_bytesPerRow < m_visitOffset || r2 * m_bytesPerRow >= m_visitOffset + m_bufferSize))
     {
         uint32_t visitOffset = (r1 + (r2 - r1) / 2) * m_bytesPerRow;
@@ -442,6 +444,7 @@ int HexTable::handle(int event) {
         m_bufferSize = dwAvalibleSize;
         if (!m_buffer || !m_bufferSize)
             CloseFile();
+        redraw();
     }
     
     return result;

@@ -1,11 +1,55 @@
 #include "HexEditorWindow.h"
 #include <FL/Fl_File_Chooser.H>
 #include <FL/fl_ask.H>
+#include <FL/Fl_Native_File_Chooser.H>
+#include <cstdlib>  // 添加exit函数
+
+// 菜单项定义
+Fl_Menu_Item HexEditorWindow::menuItems[] = {
+    {"&文件", 0, 0, 0, FL_SUBMENU},
+        {"&打开文件", FL_COMMAND + 'o', (Fl_Callback*)FileOpenCallback, 0},
+        {"&保存文件", FL_COMMAND + 's', (Fl_Callback*)FileSaveCallback, 0},
+        {"保存为...", FL_COMMAND + FL_SHIFT + 's', (Fl_Callback*)FileSaveCallback, 0},
+        {0},
+        {"退&出", FL_COMMAND + 'q', (Fl_Callback*)FileExitCallback, 0},
+        {0},
+    {0},
+    {"&编辑", 0, 0, 0, FL_SUBMENU},
+        {"&复制", FL_COMMAND + 'c', (Fl_Callback*)EditCopyCallback, 0},
+        {"&粘贴", FL_COMMAND + 'v', (Fl_Callback*)EditPasteCallback, 0},
+        {0},
+        {"&查找", FL_COMMAND + 'f', (Fl_Callback*)EditFindCallback, 0},
+        {0},
+    {0},
+    {"&视图", 0, 0, 0, FL_SUBMENU},
+        {"放大", FL_COMMAND + '+', (Fl_Callback*)ViewZoomInCallback, 0},
+        {"缩小", FL_COMMAND + '-', (Fl_Callback*)ViewZoomOutCallback, 0},
+        {"重置缩放", FL_COMMAND + '0', (Fl_Callback*)ViewResetZoomCallback, 0},
+        {0},
+    {0},
+    {"&帮助", 0, 0, 0, FL_SUBMENU},
+        {"关于", 0, (Fl_Callback*)HelpAboutCallback, 0},
+        {0},
+    {0},
+    {0}
+};
 
 HexEditorWindow::HexEditorWindow(int w, int h, const char* title)
     : Fl_Double_Window(w, h, title) {
-    // 创建十六进制表格
-    m_hexTable = new HexTable(10, 10, w - 20, h - 80);
+    // 创建菜单栏
+    m_menuBar = new Fl_Menu_Bar(0, 0, w, 30);
+    m_menuBar->menu(menuItems);
+    
+    // 为每个菜单项设置user_data为this指针
+    for (int i = 0; menuItems[i].text != nullptr; i++) {
+        if (menuItems[i].callback_ != nullptr) {
+            // 为有回调函数的菜单项设置user_data
+            menuItems[i].user_data_ = this;
+        }
+    }
+    
+    // 创建十六进制表格（调整位置，为菜单栏留出空间）
+    m_hexTable = new HexTable(10, 40, w - 20, h - 120);
     
     // 启用表格单元格导航功能
     m_hexTable->enable_cell_nav(true);
@@ -43,4 +87,82 @@ void HexEditorWindow::OpenButtonCallback(Fl_Widget* widget, void* data) {
             fl_alert("无法打开文件: %s", fileName);
         }
     }
+}
+
+// 菜单回调函数
+void HexEditorWindow::MenuCallback(Fl_Widget* widget, void* data) {
+    // 通用菜单回调，可以在这里处理菜单项选择
+    Fl_Menu_Bar* menuBar = static_cast<Fl_Menu_Bar*>(widget);
+    const Fl_Menu_Item* item = menuBar->mvalue();
+    if (item && item->label()) {
+        // 可以在这里添加通用的菜单处理逻辑
+    }
+}
+
+// 文件菜单回调函数
+void HexEditorWindow::FileOpenCallback(Fl_Widget* widget, void* data) {
+    HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
+    
+    Fl_Native_File_Chooser chooser;
+    chooser.title("选择文件");
+    chooser.type(Fl_Native_File_Chooser::BROWSE_FILE);
+    chooser.filter("所有文件\t*.*");
+    
+    if (chooser.show() == 0) {
+        const char* fileName = chooser.filename();
+        if (fileName) {
+            if (!window->m_hexTable->OpenFile(fileName)) {
+                fl_alert("无法打开文件: %s", fileName);
+            } else {
+                // 更新状态显示
+                window->m_statusBuffer->text(fileName);
+            }
+        }
+    }
+}
+
+void HexEditorWindow::FileSaveCallback(Fl_Widget* widget, void* data) {
+    HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
+    fl_alert("保存文件功能尚未实现");
+}
+
+void HexEditorWindow::FileExitCallback(Fl_Widget* widget, void* data) {
+    exit(0);
+}
+
+// 编辑菜单回调函数
+void HexEditorWindow::EditCopyCallback(Fl_Widget* widget, void* data) {
+    HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
+    fl_alert("复制功能尚未实现");
+}
+
+void HexEditorWindow::EditPasteCallback(Fl_Widget* widget, void* data) {
+    HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
+    fl_alert("粘贴功能尚未实现");
+}
+
+void HexEditorWindow::EditFindCallback(Fl_Widget* widget, void* data) {
+    HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
+    fl_alert("查找功能尚未实现");
+}
+
+// 视图菜单回调函数
+void HexEditorWindow::ViewZoomInCallback(Fl_Widget* widget, void* data) {
+    HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
+    fl_alert("放大功能尚未实现");
+}
+
+void HexEditorWindow::ViewZoomOutCallback(Fl_Widget* widget, void* data) {
+    HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
+    fl_alert("缩小功能尚未实现");
+}
+
+void HexEditorWindow::ViewResetZoomCallback(Fl_Widget* widget, void* data) {
+    HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
+    fl_alert("重置缩放功能尚未实现");
+}
+
+// 帮助菜单回调函数
+void HexEditorWindow::HelpAboutCallback(Fl_Widget* widget, void* data) {
+    fl_alert("简易十六进制编辑器\n版本 1.0\n基于FLTK开发");
 }
