@@ -178,7 +178,9 @@ void HexTable::draw_cell(TableContext context, int ROW, int COL, int X, int Y, i
                 } else {
                     // 默认模式，使用多行文本选择模式
                     if ( m_rowStartSelect == m_rowEndSelect) {
-                        if (ROW == m_rowStartSelect && COL >= m_colStartSelect && COL <= m_colEndSelect) {
+                        int minCol = std::min(m_colStartSelect, m_colEndSelect);
+                        int maxCol = std::max(m_colStartSelect, m_colEndSelect);
+                        if (ROW == m_rowStartSelect && COL >= minCol && COL <= maxCol) {
                             isSelected = true;
                         }
                     } else if (m_rowStartSelect < m_rowEndSelect) {
@@ -336,6 +338,17 @@ int HexTable::handle(int event) {
                 case FL_Home:
                 case FL_End:
                     event = FL_SHORTCUT;
+                    break;
+
+                case FL_Up:
+                case FL_Down:
+                case FL_Left:
+                case FL_Right:
+                    {
+                        Fl_Table::handle(event);
+                        get_selection(m_rowStartSelect, m_colStartSelect, m_rowEndSelect, m_colEndSelect);
+                        return 1; // return 0 cause future arrow key fail
+                    }
                     break;
 
                 default:
