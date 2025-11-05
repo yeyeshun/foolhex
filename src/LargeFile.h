@@ -92,6 +92,14 @@ public:
 	void* VisitFilePosition(uint32_t nVisitLow, uint32_t nVisitHigh = 0, uint32_t* pdwAvalibleSize = 0);
 	void* VisitFilePosition(LargeInteger nVisit, uint32_t* pdwAvalibleSize = 0);
 
+	/************************************************************************/
+	/* get current mapping info.
+	/* file offset/mapping point/avalible size
+	/************************************************************************/
+
+	void* GetMappingInfo(uint32_t& nFileOffsetLow, uint32_t& nFileOffsetHigh, uint32_t& dwAvalibleSize);
+	void* GetMappingInfo(LargeInteger& nFileOffset, uint32_t& dwAvalibleSize);
+
 protected:
 	virtual void OnUnmapViewOfFile();
 	virtual uint8_t* OnMapViewOfFile(LargeInteger nViewStart, uint32_t dwMapSize);

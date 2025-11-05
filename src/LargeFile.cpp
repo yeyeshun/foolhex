@@ -274,6 +274,22 @@ void* CLargeFile::VisitFilePosition(uint32_t nVisitLow, uint32_t nVisitHigh /*= 
 	return VisitFilePosition(nVisit, pdwAvalibleSize);
 }
 
+void* CLargeFile::GetMappingInfo(uint32_t& nFileOffsetLow, uint32_t& nFileOffsetHigh, uint32_t& dwAvalibleSize)
+{
+	LargeInteger nFileOffset;
+	void* ptr = GetMappingInfo(nFileOffset, dwAvalibleSize);
+	nFileOffsetLow = nFileOffset.LowPart;
+	nFileOffsetHigh = nFileOffset.HighPart;
+	return ptr;
+}
+
+void* CLargeFile::GetMappingInfo(LargeInteger& nFileOffset, uint32_t& dwAvalibleSize)
+{
+	nFileOffset = m_nViewStart;
+	dwAvalibleSize = m_dwMapSize;
+	return m_pView;
+}
+
 void CLargeFile::OnUnmapViewOfFile()
 {
 #ifdef _WIN32

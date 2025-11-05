@@ -14,7 +14,7 @@ private:
     size_t m_bufferSize;        // 缓冲区大小
     size_t m_fileSize;          // 文件大小
     size_t m_bytesPerRow;       // 每行显示的字节数
-    size_t m_startOffset;       // 当前显示的起始偏移量
+    size_t m_visitOffset;       // 当前文件映射的起始偏移量
     const size_t m_rowHeight = 20; // 行高
     char m_fileName[256];       // 当前打开的文件名
     Fl_Text_Buffer* m_statusBuffer; // 状态信息缓冲区
@@ -46,9 +46,6 @@ public:
 
     // 关闭文件
     void CloseFile();
-
-    // 刷新视图
-    void RefreshView();
 
     // 设置状态缓冲区
     void SetStatusBuffer(Fl_Text_Buffer* buffer);

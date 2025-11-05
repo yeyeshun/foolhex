@@ -27,22 +27,10 @@ char HexTable::getPrintableChar(uint8_t byte) {
 
 HexTable::HexTable(int x, int y, int w, int h)
     : Fl_Table(x, y, w, h), m_buffer(nullptr), m_bufferSize(0), 
-      m_fileSize(0), m_bytesPerRow(16), m_startOffset(0), m_statusBuffer(nullptr),
+      m_fileSize(0), m_bytesPerRow(16), m_visitOffset(0), m_statusBuffer(nullptr),
       m_isSelecting(false), m_isVertSelecting(false), m_rowStartSelect(-1),
       m_colStartSelect(-1), m_rowEndSelect(-1), m_colEndSelect(-1) {
     m_fileName[0] = '\0';
-    
-    // 计算可见行数（基于屏幕高度和行高）
-    int visibleRows = Fl::h() / m_rowHeight;
-    if (visibleRows < 10) visibleRows = 10; // 最小行数保护
-    
-    // 初始化缓冲区 - 在构造函数中就创建，与是否打开文件无关
-    // 设置更大的额外缓存行数用于平滑滚动
-    m_bufferSize = (visibleRows * 3) * m_bytesPerRow;
-    m_buffer = (uint8_t*)malloc(m_bufferSize);
-    if (m_buffer) {
-        memset(m_buffer, 0, m_bufferSize);
-    }
     
     // 设置支持中文的等宽字体
     fl_font(getFixedFont(), 12);
@@ -90,67 +78,34 @@ bool HexTable::OpenFile(const char* fileName) {
     LargeInteger fileSize;
     m_largeFile.GetFileSizeEx(&fileSize);
     m_fileSize = fileSize.QuadPart;
-    
-    // 如果缓冲区不存在，则创建
-    if (!m_buffer) {
-        m_buffer = (uint8_t*)malloc(m_bufferSize);
-        if (!m_buffer) {
-            CloseFile();
-            return false;
-        }
-    }
-    
+
     // 重置起始偏移量
-    m_startOffset = 0;
+    m_visitOffset = 0;
     // 更新表格行数 - 使用实际文件行数
     size_t rowCount = (m_fileSize + m_bytesPerRow - 1) / m_bytesPerRow;
     rows(rowCount);
 
-    // 读取初始数据
-    RefreshView();
-    
+    m_largeFile.VisitFilePosition(0);
+    uint32_t nFileOffsetLow, nFileOffsetHigh, dwAvalibleSize;
+    m_buffer = (uint8_t*)m_largeFile.GetMappingInfo(nFileOffsetLow, nFileOffsetHigh, dwAvalibleSize);
+    m_bufferSize = dwAvalibleSize;
+    if (!m_buffer || !m_bufferSize)
+        CloseFile();
     // 更新状态信息
     UpdateStatus();
-    
+    redraw();
     return true;
 }
 
 // 关闭文件
 void HexTable::CloseFile() {
-    m_largeFile.CloseFile();
     // 清空缓冲区但不释放（因为缓冲区在构造时创建，析构时释放）
-    if (m_buffer && m_bufferSize > 0) {
-        memset(m_buffer, 0, m_bufferSize);
-    }
+    m_buffer = 0;
     m_fileSize = 0;
-    m_startOffset = 0;
+    m_visitOffset = 0;
     m_fileName[0] = '\0';
+    m_largeFile.CloseFile();
     UpdateStatus();
-}
-
-// 刷新视图
-void HexTable::RefreshView() {
-    if (!m_buffer || m_fileSize == 0) {
-        return;
-    }
-    
-    // 计算要读取的字节数
-    size_t readSize = m_bufferSize;
-    if (m_startOffset + readSize > m_fileSize) {
-        readSize = m_fileSize - m_startOffset;
-    }
-    printf("offset: 0x%zx, readSize: %zu\n", m_startOffset, readSize);
-    memset(m_buffer, 0, readSize);
-    // 读取数据
-    uint32_t avalibleSize = 0;
-    void* dataPtr = m_largeFile.VisitFilePosition(m_startOffset, 0, &avalibleSize);
-    if (dataPtr && avalibleSize >= readSize) {
-        memcpy(m_buffer, dataPtr, readSize);
-    } else {
-        printf("error while reading from offset: 0x%zx, readSize: %zu\n", m_startOffset, readSize);
-    }
-    
-    redraw();
 }
 
 // 设置状态缓冲区
@@ -165,7 +120,7 @@ void HexTable::UpdateStatus() {
     char status[512];
     if (m_fileName[0] != '\0') {
         sprintf(status, "文件: %s | 大小: %zu 字节 | 当前偏移: 0x%zx", 
-                m_fileName, m_fileSize, m_startOffset);
+                m_fileName, m_fileSize, m_visitOffset);
     } else {
         strcpy(status, "未打开文件");
     }
@@ -258,7 +213,7 @@ void HexTable::draw_cell(TableContext context, int ROW, int COL, int X, int Y, i
             fl_font(getFixedFont(), 12);
             
             // 计算实际偏移量
-            size_t offset = m_startOffset + ROW * m_bytesPerRow;
+            size_t offset = ROW * m_bytesPerRow;
             
             if (COL == 0) {
                 // 偏移列
@@ -271,8 +226,8 @@ void HexTable::draw_cell(TableContext context, int ROW, int COL, int X, int Y, i
                 fl_color(FL_BLACK);
                 char asciiStr[m_bytesPerRow + 1];
                 for (int i = 0; i < m_bytesPerRow; i++) {
-                    if (offset + i < m_fileSize) {
-                        asciiStr[i] = getPrintableChar(m_buffer[ROW * m_bytesPerRow + i]);
+                    if (offset + i - m_visitOffset < m_fileSize) {
+                        asciiStr[i] = getPrintableChar(m_buffer[ROW * m_bytesPerRow + i - m_visitOffset]);
                     } else {
                         asciiStr[i] = ' ';
                     }
@@ -283,9 +238,9 @@ void HexTable::draw_cell(TableContext context, int ROW, int COL, int X, int Y, i
                 // 十六进制数据列
                 fl_color(FL_BLACK);
                 int byteIndex = COL - 1;
-                if (offset + byteIndex < m_fileSize) {
+                if (offset + byteIndex - m_visitOffset < m_fileSize) {
                     char hexStr[4];
-                    formatByte(hexStr, m_buffer[ROW * m_bytesPerRow + byteIndex]);
+                    formatByte(hexStr, m_buffer[ROW * m_bytesPerRow + byteIndex - m_visitOffset]);
                     fl_draw(hexStr, X, Y, W, H, FL_ALIGN_CENTER, nullptr, 0);
                 }
             }
@@ -308,7 +263,6 @@ void HexTable::draw_cell(TableContext context, int ROW, int COL, int X, int Y, i
 
 // 重写的事件处理函数
 int HexTable::handle(int event) {
-    int handled = 0;
     // 先处理我们关心的特定事件
     switch (event) {
         case FL_PUSH: {
@@ -372,84 +326,112 @@ int HexTable::handle(int event) {
         
         case FL_KEYBOARD: {
             // 键盘事件
-            if (Fl::event_key() == FL_Escape) {
-                // ESC键处理
-                handled = 1;
-            } else {
-                // 获取当前选中的单元格
-                if (m_rowStartSelect != m_rowEndSelect || m_colStartSelect != m_colEndSelect)
+            switch (Fl::event_key())
+            {
+                case FL_Escape:
+                    return 0;
+
+                case FL_Page_Up:
+                case FL_Page_Down:
+                case FL_Home:
+                case FL_End:
+                    event = FL_SHORTCUT;
+                    break;
+
+                default:
                 {
-                    if (m_colStartSelect == 0) m_colStartSelect = 1;
-                    if (m_colEndSelect == 0) m_colEndSelect = 1;
-                }
-                int R = m_rowStartSelect;
-                int C = m_colStartSelect;
+                // 获取当前选中的单元格
+                    if (m_rowStartSelect != m_rowEndSelect || m_colStartSelect != m_colEndSelect)
+                    {
+                        if (m_colStartSelect == 0) m_colStartSelect = 1;
+                        if (m_colEndSelect == 0) m_colEndSelect = 1;
+                    }
+                    int R = m_rowStartSelect;
+                    int C = m_colStartSelect;
 
-                // 只有十六进制数据列可以编辑
-                if (C >= 1 && C <= m_bytesPerRow) {
-                    // 检查是否输入了有效的十六进制字符
-                    char key = Fl::e_text[0];
-                    if ((key >= '0' && key <= '9') || 
-                        (key >= 'a' && key <= 'f') || 
-                        (key >= 'A' && key <= 'F')) {
-                        // 计算缓冲区中的索引
-                        size_t bufferIndex = R * m_bytesPerRow + (C - 1);
-                        
-                        // 确保索引在缓冲区范围内
-                        if (bufferIndex < m_bufferSize) {
-                            // 将字符转换为数值
-                            int value = 0;
-                            if (key >= '0' && key <= '9') {
-                                value = key - '0';
-                            } else if (key >= 'a' && key <= 'f') {
-                                value = key - 'a' + 10;
-                            } else if (key >= 'A' && key <= 'F') {
-                                value = key - 'A' + 10;
-                            }
+                    // 只有十六进制数据列可以编辑
+                    if (C >= 1 && C <= m_bytesPerRow) {
+                        // 检查是否输入了有效的十六进制字符
+                        char key = Fl::e_text[0];
+                        if ((key >= '0' && key <= '9') || 
+                            (key >= 'a' && key <= 'f') || 
+                            (key >= 'A' && key <= 'F')) {
+                            // 计算缓冲区中的索引
+                            size_t bufferIndex = R * m_bytesPerRow + (C - 1);
+                            
+                            // 确保索引在缓冲区范围内
+                            if (bufferIndex < m_bufferSize) {
+                                // 将字符转换为数值
+                                int value = 0;
+                                if (key >= '0' && key <= '9') {
+                                    value = key - '0';
+                                } else if (key >= 'a' && key <= 'f') {
+                                    value = key - 'a' + 10;
+                                } else if (key >= 'A' && key <= 'F') {
+                                    value = key - 'A' + 10;
+                                }
 
-                            // 根据m_isLow4BitEditing标志决定更新高4位还是低4位
-                            if (m_isLow4BitEditing) {
-                                // 更新低4位
-                                m_buffer[bufferIndex] = (m_buffer[bufferIndex] & 0xF0) | value;
-                                m_isLow4BitEditing = 0;
-                                m_colStartSelect++;
-                                // 确保不超出当前行的边界
-                                if (m_colStartSelect > m_bytesPerRow) {
-                                    m_colStartSelect = 1;
-                                    m_rowStartSelect++;
+                                // 根据m_isLow4BitEditing标志决定更新高4位还是低4位
+                                if (m_isLow4BitEditing) {
+                                    // 更新低4位
+                                    m_buffer[bufferIndex] = (m_buffer[bufferIndex] & 0xF0) | value;
+                                    m_isLow4BitEditing = 0;
+                                    m_colStartSelect++;
+                                    // 确保不超出当前行的边界
+                                    int oldRow = m_rowStartSelect;
+                                    if (m_colStartSelect > m_bytesPerRow) {
+                                        m_colStartSelect = 1;
+                                        m_rowStartSelect++;
+                                    }
+                                    if (m_rowStartSelect * m_bytesPerRow + m_colStartSelect >= m_fileSize) {
+                                        m_colStartSelect = (m_fileSize - 1) % m_bytesPerRow + 1;
+                                        m_rowStartSelect = (m_fileSize - 1) / m_bytesPerRow;
+                                    } else if (oldRow != m_rowStartSelect) {
+                                        int r1, r2, c1, c2;
+                                        visible_cells(r1, r2, c1, c2);
+                                        if (m_rowStartSelect > r2)
+                                            row_position(r1 + 1);
+                                    }
+                                } else {
+                                    // 更新高4位
+                                    m_buffer[bufferIndex] = (m_buffer[bufferIndex] & 0x0F) | (value << 4);
+                                    m_isLow4BitEditing = 1;
                                 }
-                                if (m_rowStartSelect * m_bytesPerRow + m_colStartSelect >= m_fileSize) {
-                                    m_colStartSelect = (m_fileSize - 1) % m_bytesPerRow + 1;
-                                    m_rowStartSelect = (m_fileSize - 1) / m_bytesPerRow;
-                                }
-                            } else {
-                                // 更新高4位
-                                m_buffer[bufferIndex] = (m_buffer[bufferIndex] & 0x0F) | (value << 4);
-                                m_isLow4BitEditing = 1;
+                                m_rowEndSelect = m_rowStartSelect;
+                                m_colEndSelect = m_colStartSelect;
+                                
+                                // 触发重绘以更新显示
+                                redraw();
+                                
+                                // 更新状态信息
+                                UpdateStatus();
                             }
-                            m_rowEndSelect = m_rowStartSelect;
-                            m_colEndSelect = m_colStartSelect;
-                            
-                            // 触发重绘以更新显示
-                            redraw();
-                            
-                            // 更新状态信息
-                            UpdateStatus();
+                        } else if (key == '\r' || key == '\n') {
+                            // Enter键处理
                         }
-                        handled = 1;
-                    } else if (key == '\r' || key == '\n') {
-                        // Enter键处理
                     }
                 }
+                break;
             }
-            break;
         }
     }
-    if (!handled) {
-        return Fl_Table::handle(event);
+    int result = Fl_Table::handle(event);
+    int r1, r2, c1, c2;
+    visible_cells(r1, r2, c1, c2);
+    if (r1 > 0 && r2 > 0 &&
+        (r1 * m_bytesPerRow < m_visitOffset || r2 * m_bytesPerRow >= m_visitOffset + m_bufferSize))
+    {
+        uint32_t visitOffset = (r1 + (r2 - r1) / 2) * m_bytesPerRow;
+        m_largeFile.VisitFilePosition(visitOffset);
+        uint32_t nFileOffsetLow, nFileOffsetHigh, dwAvalibleSize;
+        m_buffer = (uint8_t*)m_largeFile.GetMappingInfo(nFileOffsetLow, nFileOffsetHigh, dwAvalibleSize);
+        m_visitOffset = nFileOffsetLow;
+        m_bufferSize = dwAvalibleSize;
+        if (!m_buffer || !m_bufferSize)
+            CloseFile();
     }
     
-    return 1;
+    return result;
 }
 
 
