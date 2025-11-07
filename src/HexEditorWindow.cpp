@@ -3,6 +3,8 @@
 #include <FL/fl_ask.H>
 #include <FL/Fl_Native_File_Chooser.H>
 #include <cstdlib>  // 添加exit函数
+#include "BindingType.h"
+#include "FakeType.h"
 
 // 菜单项定义
 Fl_Menu_Item HexEditorWindow::menuItems[] = {
@@ -17,16 +19,50 @@ Fl_Menu_Item HexEditorWindow::menuItems[] = {
         {"&粘贴", FL_COMMAND + 'v', (Fl_Callback*)EditPasteCallback, 0, FL_MENU_DIVIDER},
         {"&查找", FL_COMMAND + 'f', (Fl_Callback*)EditFindCallback, 0},
         {0},
-    {"&视图", 0, 0, 0, FL_SUBMENU},
-        {"放大", FL_COMMAND + '+', (Fl_Callback*)ViewZoomInCallback, 0},
-        {"缩小", FL_COMMAND + '-', (Fl_Callback*)ViewZoomOutCallback, 0},
-        {"重置缩放", FL_COMMAND + '0', (Fl_Callback*)ViewResetZoomCallback, 0},
+    {"&数据管理", 0, 0, 0, FL_SUBMENU},
+        {"基础类型管理", FL_COMMAND + '+', (Fl_Callback*)ManageBasicTypeCallback, 0},
+        {"结构体类型管理", FL_COMMAND + '-', (Fl_Callback*)ManageStructTypeCallback, 0},
+        {"变量管理", FL_COMMAND + '0', (Fl_Callback*)ManageVarCallback, 0},
         {0},
     {"&帮助", 0, 0, 0, FL_SUBMENU},
         {"关于", 0, (Fl_Callback*)HelpAboutCallback, 0},
         {0},
     {0}
 };
+
+void regBaseType()
+{
+	ADD_TYPE(char);
+	ADD_TYPE(signed char);
+	ADD_TYPE(unsigned char);
+
+	ADD_TYPE(wchar_t);
+
+	ADD_TYPE(short);
+	ADD_TYPE(signed short);
+	ADD_TYPE(unsigned short);
+
+	ADD_TYPE(int);
+	ADD_TYPE(signed int);
+	ADD_TYPE(unsigned int);
+
+	ADD_TYPE(long);
+	ADD_TYPE(signed long);
+	ADD_TYPE(unsigned long);
+
+	ADD_TYPE(long long);
+	ADD_TYPE(signed long long);
+	ADD_TYPE(unsigned long long);
+#ifdef _WIN32
+	ADD_TYPE(__int64);
+	ADD_TYPE(signed __int64);
+	ADD_TYPE(unsigned __int64);
+#endif
+
+	ADD_TYPE(float);
+	ADD_TYPE(double);
+	ADD_TYPE(long double);
+}
 
 HexEditorWindow::HexEditorWindow(int w, int h, const char* title)
     : Fl_Double_Window(w, h, title) {
@@ -61,6 +97,20 @@ HexEditorWindow::HexEditorWindow(int w, int h, const char* title)
     m_hexTable->SetStatusBuffer(m_statusBuffer);
     
     end();
+
+    regBaseType();
+    parseSimpleConfig("aliastype.conf", DefineFakeType);
+
+        // 遍历并打印所有注册的基础类型
+    size_t nCount = BindingType::m_vecTotalType.size();
+    printf("已注册的基础类型 (%zu 个):\n", nCount);
+    for (size_t i = 0; i < nCount; i++) {
+        BindingType* pType = BindingType::m_vecTotalType[i];
+        // 将宽字符串转换为窄字符串进行打印
+        std::wstring wideStr = pType->m_strType;
+        std::string narrowStr(wideStr.begin(), wideStr.end());
+        printf("类型 %zu: %s, 大小: %d 字节\n", i + 1, narrowStr.c_str(), pType->m_nTypeSize);
+    }
 }
 
 HexEditorWindow::~HexEditorWindow() {
@@ -125,19 +175,19 @@ void HexEditorWindow::EditFindCallback(Fl_Widget* widget, void* data) {
 }
 
 // 视图菜单回调函数
-void HexEditorWindow::ViewZoomInCallback(Fl_Widget* widget, void* data) {
+void HexEditorWindow::ManageBasicTypeCallback(Fl_Widget* widget, void* data) {
     HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
-    fl_alert("放大功能尚未实现");
+    fl_alert("功能尚未实现");
 }
 
-void HexEditorWindow::ViewZoomOutCallback(Fl_Widget* widget, void* data) {
+void HexEditorWindow::ManageStructTypeCallback(Fl_Widget* widget, void* data) {
     HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
-    fl_alert("缩小功能尚未实现");
+    fl_alert("功能尚未实现");
 }
 
-void HexEditorWindow::ViewResetZoomCallback(Fl_Widget* widget, void* data) {
+void HexEditorWindow::ManageVarCallback(Fl_Widget* widget, void* data) {
     HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
-    fl_alert("重置缩放功能尚未实现");
+    fl_alert("功能尚未实现");
 }
 
 // 帮助菜单回调函数

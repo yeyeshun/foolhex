@@ -37,10 +37,10 @@ public:
     static void EditPasteCallback(Fl_Widget* widget, void* data);
     static void EditFindCallback(Fl_Widget* widget, void* data);
 
-    // 视图菜单回调函数
-    static void ViewZoomInCallback(Fl_Widget* widget, void* data);
-    static void ViewZoomOutCallback(Fl_Widget* widget, void* data);
-    static void ViewResetZoomCallback(Fl_Widget* widget, void* data);
+    // 数据管理菜单回调函数
+    static void ManageBasicTypeCallback(Fl_Widget* widget, void* data);
+    static void ManageStructTypeCallback(Fl_Widget* widget, void* data);
+    static void ManageVarCallback(Fl_Widget* widget, void* data);
 
     // 帮助菜单回调函数
     static void HelpAboutCallback(Fl_Widget* widget, void* data);

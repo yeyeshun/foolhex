@@ -5,7 +5,15 @@ project(foolhex)
 add_subdirectory(thirdparty/fltk)
 
 # 创建可执行文件
-add_executable(${PROJECT_NAME} src/main.cpp src/kmp.cpp src/LargeFile.cpp src/HexTable.cpp src/HexEditorWindow.cpp)
+add_executable(${PROJECT_NAME}
+    src/main.cpp
+    src/kmp.cpp
+    src/LargeFile.cpp
+    src/HexTable.cpp
+    src/HexEditorWindow.cpp
+    src/BindingType.cpp
+    src/FakeType.cpp
+)
 
 # 链接FLTK库
 target_link_libraries(${PROJECT_NAME} PRIVATE fltk)
