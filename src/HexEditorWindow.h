@@ -8,6 +8,7 @@
 #include <FL/Fl_Menu_Bar.H>
 #include <FL/Fl_Menu_Item.H>
 #include "HexTable.h"
+#include "BasicTypeManagerDialog.h"
 
 // 主应用窗口类
 class HexEditorWindow : public Fl_Double_Window {

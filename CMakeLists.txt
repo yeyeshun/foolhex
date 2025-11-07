@@ -13,6 +13,7 @@ add_executable(${PROJECT_NAME}
     src/HexEditorWindow.cpp
     src/BindingType.cpp
     src/FakeType.cpp
+    src/BasicTypeManagerDialog.cpp
 )
 
 # 链接FLTK库

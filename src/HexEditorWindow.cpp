@@ -3,7 +3,6 @@
 #include <FL/fl_ask.H>
 #include <FL/Fl_Native_File_Chooser.H>
 #include <cstdlib>  // 添加exit函数
-#include "BindingType.h"
 #include "FakeType.h"
 
 // 菜单项定义
@@ -175,11 +174,6 @@ void HexEditorWindow::EditFindCallback(Fl_Widget* widget, void* data) {
 }
 
 // 视图菜单回调函数
-void HexEditorWindow::ManageBasicTypeCallback(Fl_Widget* widget, void* data) {
-    HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
-    fl_alert("功能尚未实现");
-}
-
 void HexEditorWindow::ManageStructTypeCallback(Fl_Widget* widget, void* data) {
     HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
     fl_alert("功能尚未实现");
@@ -193,4 +187,20 @@ void HexEditorWindow::ManageVarCallback(Fl_Widget* widget, void* data) {
 // 帮助菜单回调函数
 void HexEditorWindow::HelpAboutCallback(Fl_Widget* widget, void* data) {
     fl_alert("简易十六进制编辑器\n版本 1.0\n基于FLTK开发");
+}
+
+// ManageBasicTypeCallback 函数实现
+void HexEditorWindow::ManageBasicTypeCallback(Fl_Widget* widget, void* data) {
+    HexEditorWindow* window = static_cast<HexEditorWindow*>(data);
+    
+    // 创建基础类型管理对话框
+    BasicTypeManagerDialog* dialog = new BasicTypeManagerDialog(500, 400, "基础类型管理");
+    dialog->show();
+    
+    // 等待对话框关闭
+    while (dialog->shown()) {
+        Fl::wait();
+    }
+    
+    delete dialog;
 }
