@@ -14,14 +14,14 @@ int IsBadReadPtr(void*,  int)
 #endif
 
 
-std::vector<BindingType*> BindingType::m_vecTotalType;
+std::vector<BindingType*> BindingType::m_vecAllTypes;
 
-BindingType* BindingType::queryType(const wchar_t* pszTypeName)
+BindingType* BindingType::FindTypeByName(const wchar_t* pszTypeName)
 {
-	size_t nCount = m_vecTotalType.size();
+	size_t nCount = m_vecAllTypes.size();
 	for (size_t n = 0; n < nCount; n++)
 	{
-		BindingType* p = m_vecTotalType.at(n);
+		BindingType* p = m_vecAllTypes.at(n);
 		if (p->m_strType.compare(pszTypeName) == 0)
 		{
 			return p;

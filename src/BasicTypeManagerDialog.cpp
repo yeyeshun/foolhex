@@ -42,10 +42,11 @@ BasicTypeManagerDialog::BasicTypeManagerDialog(int w, int h, const char* title)
 void BasicTypeManagerDialog::refreshTypeList() {
     m_typeList->clear();
     
-    size_t nCount = BindingType::m_vecTotalType.size();
+    size_t nCount = BindingType::m_vecAllTypes.size();
     for (size_t i = 0; i < nCount; i++) {
-        BindingType* pType = BindingType::m_vecTotalType[i];
-        m_typeList->add(ws2s(pType->m_strType).c_str());
+        BindingType* pType = BindingType::m_vecAllTypes[i];
+        if (pType->IsStruct() == 0)
+            m_typeList->add(ws2s(pType->m_strType).c_str());
     }
     
     // 如果有类型，默认选中第一个
@@ -57,8 +58,8 @@ void BasicTypeManagerDialog::refreshTypeList() {
 }
 
 void BasicTypeManagerDialog::updateTypeDetails() {
-    if (m_selectedIndex >= 0 && m_selectedIndex < (int)BindingType::m_vecTotalType.size()) {
-        BindingType* pType = BindingType::m_vecTotalType[m_selectedIndex];
+    if (m_selectedIndex >= 0 && m_selectedIndex < (int)BindingType::m_vecAllTypes.size()) {
+        BindingType* pType = BindingType::m_vecAllTypes[m_selectedIndex];
         
         // 更新类型名称
         std::wstring wideStr = pType->m_strType;

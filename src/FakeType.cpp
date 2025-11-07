@@ -19,17 +19,17 @@ std::wstring s2ws(const std::string& str)
     return wstr;
 }
 
-void DefineFakeType(const std::string& strFakeNameA, const std::string& strRealTypeNameA)
+void RegAliasType(const std::string& strFakeNameA, const std::string& strRealTypeNameA)
 {
     std::wstring strFakeName = s2ws(strFakeNameA);
     std::wstring strRealTypeName = s2ws(strRealTypeNameA);
 
-    if (BindingType::queryType(strFakeName.c_str()))
+    if (BindingType::FindTypeByName(strFakeName.c_str()))
     {
         return;
     }
 
-    BindingType* pType = BindingType::queryType(strRealTypeName.c_str());
+    BindingType* pType = BindingType::FindTypeByName(strRealTypeName.c_str());
     if (!pType)
     {
         return;
@@ -38,7 +38,7 @@ void DefineFakeType(const std::string& strFakeNameA, const std::string& strRealT
     BindingType* pFakeType = new BindingType();
     *pFakeType = *pType;
     pFakeType->m_strType = strFakeName;
-    BindingType::m_vecTotalType.push_back(pFakeType);
+    BindingType::m_vecAllTypes.push_back(pFakeType);
     return;
 }
 

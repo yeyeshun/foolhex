@@ -29,7 +29,7 @@ Fl_Menu_Item HexEditorWindow::menuItems[] = {
     {0}
 };
 
-void regBaseType()
+void RegBaseType()
 {
 	ADD_TYPE(char);
 	ADD_TYPE(signed char);
@@ -97,14 +97,14 @@ HexEditorWindow::HexEditorWindow(int w, int h, const char* title)
     
     end();
 
-    regBaseType();
-    parseSimpleConfig("aliastype.conf", DefineFakeType);
+    RegBaseType();
+    parseSimpleConfig("aliastype.conf", RegAliasType);
 
         // 遍历并打印所有注册的基础类型
-    size_t nCount = BindingType::m_vecTotalType.size();
+    size_t nCount = BindingType::m_vecAllTypes.size();
     printf("已注册的基础类型 (%zu 个):\n", nCount);
     for (size_t i = 0; i < nCount; i++) {
-        BindingType* pType = BindingType::m_vecTotalType[i];
+        BindingType* pType = BindingType::m_vecAllTypes[i];
         // 将宽字符串转换为窄字符串进行打印
         std::wstring wideStr = pType->m_strType;
         std::string narrowStr(wideStr.begin(), wideStr.end());

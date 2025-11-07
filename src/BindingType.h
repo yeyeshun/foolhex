@@ -5,12 +5,13 @@
 class BindingType
 {
 public:
-	BindingType() { m_nTypeSize = 0; }
+	BindingType() { m_nTypeSize = 0; m_bIsStruct = 0; }
 	~BindingType() {;}
 
-	static std::vector<BindingType*> m_vecTotalType;
-	static BindingType* queryType(const wchar_t* pszTypeName);
+	static std::vector<BindingType*> m_vecAllTypes;
+	static BindingType* FindTypeByName(const wchar_t* pszTypeName);
 
+	int IsStruct() { return m_bIsStruct; }
 	void getValue(unsigned long long nValueAdr, unsigned long long& nValue);
 	void getValue(unsigned long long nValueAdr, long long& nValue);
 	void getValue(unsigned long long nValueAdr, float& fValue);
@@ -24,6 +25,7 @@ public:
 protected:
 	void getValue(unsigned long long nValueAdr, void* pnValue);
 	void(*m_pFunctionOutput)(std::wstring&, void*);
+	int m_bIsStruct;
 };
 
 class BindingStructMemberType
@@ -40,7 +42,7 @@ public:
 class BindingStructType : public BindingType
 {
 public:
-	BindingStructType(){ m_nTypeSize = -1; }
+	BindingStructType(){ m_nTypeSize = -1; m_bIsStruct = 1; }
 	~BindingStructType();
 	std::vector<BindingStructMemberType*>* GetChild() { return &m_vecChild; }
 protected:
@@ -77,5 +79,5 @@ do \
 		ss << *p;\
 		str = ss.str();\
 				}));\
-	BindingType::m_vecTotalType.push_back(p);\
+	BindingType::m_vecAllTypes.push_back(p);\
 } while (0);
