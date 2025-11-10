@@ -60,7 +60,7 @@ public:
     BindingType* m_pType;
 	std::wstring m_strName;
 	std::wstring m_strArraySize;
-	unsigned long long m_nViewOffsetAddr;
+	std::wstring m_strViewOffsetAddr;
 
 	std::wstring Output();
 	unsigned long long GetTotalSize();

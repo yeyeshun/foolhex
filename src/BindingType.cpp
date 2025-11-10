@@ -97,7 +97,6 @@ BindingVariant::BindingVariant(void)
 {
 	m_pType = 0;
 	m_strArraySize = L"1";
-	m_nViewOffsetAddr = 0;
 }
 
 std::vector<BindingVariant*> BindingVariant::m_vecTotalVar;

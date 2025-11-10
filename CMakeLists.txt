@@ -13,6 +13,7 @@ add_executable(${PROJECT_NAME}
     src/HexEditorWindow.cpp
     src/BindingType.cpp
     src/FakeType.cpp
+    src/LoadStruct.cpp
     src/BasicTypeManagerDialog.cpp
 )
 
