@@ -1,8 +1,11 @@
 #include "LoadStruct.h"
 #include "BindingType.h"
+#include "FakeType.h"
 #include <string>
 #include <cwchar>
 #include <sstream>
+#include <fstream>
+#include <iostream>
 
 void preprocess(std::wstring& str)
 {
@@ -131,8 +134,14 @@ int getWord(std::wstringstream& ssTotal, std::wstringstream& ssLine, std::wstrin
 		{
 			ssTotal.clear();
 			ssTotal.getline(sz, 1024);
-			ssLine << sz;
-		} while (ssTotal.rdstate() & std::ios::failbit);
+			// 检查是否读取到了有效内容
+			if (ssTotal.good() || ssTotal.eof())
+			{
+				ssLine << sz;
+				break;  // 成功读取或到达文件末尾，退出循环
+			}
+			// 如果读取失败且不是文件末尾，继续尝试
+		} while (ssTotal.rdstate() & std::ios::failbit && !ssTotal.eof());
 	}
 	ssLine >> strWord;
 	while (strWord.empty())
@@ -274,6 +283,7 @@ BindingVariant* addNewVariant(std::wstringstream& ssTotal, std::wstringstream& s
 void LoadStruct(std::wstring& str)
 {
 	preprocess(str);
+
 	std::wstringstream ssTotal;
 	std::wstringstream ssLine;
 	std::wstring strWord;
@@ -291,7 +301,7 @@ void LoadStruct(std::wstring& str)
 			if (!regNewStructType(ssTotal, ssLine, strWord))
 			{
 				std::wstring strLine = ssLine.str();
-				wprintf(L"error: [regNewStructType] %s\n", strLine.c_str());
+				wprintf(L"error: [regNewStructType] %ls\n", strLine.c_str());
 				break;
 			}
 		}
@@ -300,9 +310,44 @@ void LoadStruct(std::wstring& str)
 			if (!addNewVariant(ssTotal, ssLine, strWord))
 			{
 				std::wstring strLine = ssLine.str();
-				wprintf(L"error: [addNewVariant] %s\n", strLine.c_str());
+				wprintf(L"error: [addNewVariant] %ls\n", strLine.c_str());
 				break;
 			}
 		}
 	}
+}
+
+void LoadStructFromFile(const std::string& filename)
+{
+    // 打开文件
+    std::ifstream file(filename, std::ios::binary);
+    if (!file.is_open()) {
+        std::cerr << "错误: 无法打开文件 '" << filename << "'" << std::endl;
+        return;
+    }
+    
+    // 获取文件大小
+    file.seekg(0, std::ios::end);
+    std::streamsize fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+    
+    if (fileSize <= 0) {
+        std::cerr << "警告: 文件 '" << filename << "' 为空或大小为0" << std::endl;
+        file.close();
+        return;
+    }
+    
+    // 读取文件内容到字符串
+    std::string fileContent;
+    fileContent.resize(fileSize);
+    file.read(&fileContent[0], fileSize);
+    file.close();
+    
+    // 将UTF-8字符串转换为宽字符串
+    std::wstring wideContent = s2ws(fileContent);
+
+    // 调用LoadStruct函数处理内容
+    LoadStruct(wideContent);
+    
+    std::cout << "成功从文件 '" << filename << "' 加载结构定义" << std::endl;
 }

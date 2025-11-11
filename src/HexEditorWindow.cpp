@@ -4,6 +4,7 @@
 #include <FL/Fl_Native_File_Chooser.H>
 #include <cstdlib>  // 添加exit函数
 #include "FakeType.h"
+#include "LoadStruct.h"
 
 // 菜单项定义
 Fl_Menu_Item HexEditorWindow::menuItems[] = {
@@ -99,6 +100,7 @@ HexEditorWindow::HexEditorWindow(int w, int h, const char* title)
 
     RegBaseType();
     parseSimpleConfig("aliastype.conf", RegAliasType);
+    LoadStructFromFile("struct.def");
 
         // 遍历并打印所有注册的基础类型
     size_t nCount = BindingType::m_vecAllTypes.size();

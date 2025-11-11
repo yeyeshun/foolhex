@@ -79,6 +79,6 @@ typedef struct IMAGE_NT_HEADERS {
     IMAGE_FILE_HEADER FileHeader;
     IMAGE_OPTIONAL_HEADER OptionalHeader;
 } IMAGE_NT_HEADERS32, *PIMAGE_NT_HEADERS32;
-char szMZ[2] = _BaseAddress;
-IMAGE_DOS_HEADER pDos = _BaseAddress;
-IMAGE_NT_HEADERS pNT = _BaseAddress + pDos.e_lfanew;
+// char szMZ[2] = _BaseAddress;
+// IMAGE_DOS_HEADER pDos = _BaseAddress;
+// IMAGE_NT_HEADERS pNT = _BaseAddress + pDos.e_lfanew;
